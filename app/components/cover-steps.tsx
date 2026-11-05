@@ -44,13 +44,42 @@ export interface Offer {
 type QuoteResponse = { offers: Offer[]; declined: { productId: string; reasons: string[] }[]; currencies: ("USDC" | "EURC")[] };
 
 export const SAMPLES = [
-  { file: "bl-baltic-wren.txt", label: "Bill of lading — Baltic Wren to Helsinki" },
-  { file: "bl-indus-heron.txt", label: "Bill of lading — Indus Heron to Nhava Sheva (Mumbai)" },
-  { file: "bl-nordic-tern.txt", label: "Sea waybill — Nordic Tern to Kotka (contains a prompt-injection line)" },
-  { file: "bl-aurora-skerry.txt", label: "Booking confirmation — Aurora Skerry to Turku" },
-  { file: "bl-kestrel-bay.txt", label: "Bill of lading — Kestrel Bay to Rauma" },
-  { file: "bl-conflicting-imo.txt", label: "Bill of lading with conflicting vessel details" },
+  { file: "bl-baltic-wren.txt", label: "Bill of lading — Baltic Wren to Helsinki", group: "Finland" },
+  { file: "bl-harbour-siskin.txt", label: "Bill of lading — Harbour Siskin to Hamina", group: "Finland" },
+  { file: "bl-nordic-tern.txt", label: "Sea waybill — Nordic Tern to Kotka (contains a prompt-injection line)", group: "Finland" },
+  { file: "bl-aurora-skerry.txt", label: "Booking confirmation — Aurora Skerry to Turku", group: "Finland" },
+  { file: "bl-kestrel-bay.txt", label: "Bill of lading — Kestrel Bay to Rauma", group: "Finland" },
+  { file: "bl-indus-heron.txt", label: "Bill of lading — Indus Heron to Nhava Sheva (Mumbai)", group: "India" },
+  { file: "bl-gulf-mallard.txt", label: "Bill of lading — Gulf Mallard to Mundra", group: "India" },
+  { file: "bl-coromandel-lark.txt", label: "Bill of lading — Coromandel Lark to Chennai", group: "India" },
+  { file: "bl-malabar-kite.txt", label: "Bill of lading — Malabar Kite to Kochi", group: "India" },
+  { file: "bl-conflicting-imo.txt", label: "Bill of lading with conflicting vessel details", group: "Reading checks" },
 ];
+
+const SAMPLE_GROUPS = ["Finland", "India", "Reading checks"] as const;
+
+export function SampleChoices({ disabled, onPick }: { disabled?: boolean; onPick: (file: string) => void }) {
+  return (
+    <div className="space-y-3">
+      {SAMPLE_GROUPS.map((group) => {
+        const items = SAMPLES.filter((s) => s.group === group);
+        if (!items.length) return null;
+        return (
+          <div key={group}>
+            <div className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">{group}</div>
+            <div className="flex flex-wrap gap-2">
+              {items.map((s) => (
+                <button key={s.file} type="button" className="btn btn-ghost !py-1 !px-3 !text-xs !font-medium" disabled={disabled} onClick={() => onPick(s.file)}>
+                  {s.label.replace(/^(Bill of lading|Sea waybill|Booking confirmation) — /, "")}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------- connect
 export function ConnectStep() {

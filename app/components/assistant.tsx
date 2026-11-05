@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { api, fmtDate } from "./api";
-import { BuyCard, PurchasedNote, ReviewForm, SAMPLES, type Extraction, type Offer, type PurchaseDone, type UploadResult } from "./cover-steps";
+import { BuyCard, PurchasedNote, ReviewForm, SampleChoices, type Extraction, type Offer, type PurchaseDone, type UploadResult } from "./cover-steps";
 import { Markdown } from "./markdown";
 import { ErrorNote, Spinner, TestFunds } from "./ui";
 
@@ -77,13 +77,7 @@ export function Assistant() {
         {messages.length === 0 && (
           <div className="text-sm text-ink-2 space-y-3">
             <p>Hi! I can help you protect a shipment against a late vessel arrival at a port in Finland or India. Upload your bill of lading or booking confirmation to start, or try a synthetic sample:</p>
-            <div className="flex flex-wrap gap-2">
-              {SAMPLES.slice(0, 3).map((s) => (
-                <button key={s.file} className="btn btn-ghost !py-1 !px-3 !text-xs" disabled={uploading} onClick={() => sample(s.file)}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
+            <SampleChoices disabled={uploading} onPick={sample} />
           </div>
         )}
         {messages.map((m) => (

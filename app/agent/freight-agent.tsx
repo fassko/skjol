@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmTool } from "../components/assistant";
 import { api, fmtDate, short } from "../components/api";
-import { ConnectStep, SAMPLES, type UploadResult } from "../components/cover-steps";
+import { ConnectStep, SampleChoices, type UploadResult } from "../components/cover-steps";
 import { Markdown } from "../components/markdown";
 import { useSession } from "../components/session";
 import { ErrorNote, ExtLink, Spinner } from "../components/ui";
@@ -160,13 +160,7 @@ function AgentChat({ onSpend }: { onSpend: () => void }) {
               ))}
             </div>
             <p className="text-xs text-muted pt-2">No shipment yet? Add a synthetic sample:</p>
-            <div className="flex flex-wrap gap-2">
-              {SAMPLES.slice(0, 3).map((s) => (
-                <button key={s.file} className="btn btn-ghost !py-1 !px-3 !text-xs" disabled={uploading || busy} onClick={() => sample(s.file)}>
-                  {s.label.split(" — ")[1] ?? s.label}
-                </button>
-              ))}
-            </div>
+            <SampleChoices disabled={uploading || busy} onPick={sample} />
           </div>
         )}
         {messages.map((m) => (

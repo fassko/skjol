@@ -2,7 +2,7 @@ import "server-only";
 import { createPublicClient, createWalletClient, ExpirationTime, NoEntityFoundError } from "@arkiv-network/sdk";
 import { rabdi } from "@arkiv-network/sdk/chains";
 import { addr, bytes, defineSchema, i32, str, u256, u64 } from "@arkiv-network/sdk/schema";
-import { desc, eq, gte, lt, and } from "@arkiv-network/sdk/query";
+import { and, asc, desc, eq, gte, lt, MAX_LIMIT } from "@arkiv-network/sdk/query";
 import { http, hexToBytes, type Hex } from "viem";
 import { account, config } from "../config";
 import type {
@@ -662,10 +662,15 @@ export class ArkivStore implements AppStore {
 
     const sooner = lt("$expiresAt", u64(until));
     const keys = async (schema: TrailSchema, writer: Writer, field: string, value: string): Promise<Hex[]> => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const q = pub().select({ $key: true }).from(schema as any).createdBy(this.w[writer]);
-      const { entities } = await q.where(and(eq(field, value), sooner)).limit(200).fetch();
-      return entities.map((e) => e.$key);
+      const out: Hex[] = [];
+      for (let offset = 0; ; offset += MAX_LIMIT) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const q = pub().select({ $key: true }).from(schema as any).createdBy(this.w[writer]);
+        const { entities } = await q.where(and(eq(field, value), sooner)).orderBy(asc("$key")).limit(MAX_LIMIT).offset(offset).fetch();
+        out.push(...entities.map((e) => e.$key));
+        if (entities.length < MAX_LIMIT) break;
+      }
+      return out;
     };
     const id = trail.policyId;
     const [policy, events, observations, evaluations, quotes, shipment] = await Promise.all([
