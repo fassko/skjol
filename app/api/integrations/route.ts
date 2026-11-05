@@ -1,10 +1,27 @@
 import { handle } from "@/lib/http";
-import { ARC_TESTNET, ARKIV_RABDI, chainConfig, config, hederaConfig, poolConfigs, x402Config } from "@/lib/config";
+import { ARC_TESTNET, ARKIV_RABDI, UNISWAP_V2, chainConfig, config, hederaConfig, poolConfigs, x402Config } from "@/lib/config";
 import { addressLink, poolSnapshot, txLink } from "@/lib/chain";
 import { SCHEMA_NAMES, writerAddresses } from "@/lib/store/arkiv";
 import { store } from "@/lib/store";
 import { swarmLabel, swarmMode, swarmPrizeReady } from "@/lib/swarm";
 import { formatUsdc } from "@/shared/products";
+
+function formatSnap(snap: Awaited<ReturnType<typeof poolSnapshot>>) {
+  const nav =
+    snap.totalSupply > 0n
+      ? formatUsdc((snap.totalAssets * 1_000_000n) / snap.totalSupply)
+      : "1.00";
+  return {
+    available: formatUsdc(snap.available),
+    reserved: formatUsdc(snap.reserved),
+    totalAssets: formatUsdc(snap.totalAssets),
+    totalSupply: formatUsdc(snap.totalSupply),
+    navPerShare: nav,
+    shareSymbol: snap.shareSymbol,
+    sharePair: snap.sharePair,
+    sharePairUrl: snap.sharePair ? addressLink(snap.sharePair) : null,
+  };
+}
 
 export const GET = handle(async () => {
   const c = chainConfig();
@@ -17,7 +34,10 @@ export const GET = handle(async () => {
         pool: p.pool,
         poolUrl: addressLink(p.pool),
         token: p.token,
-        snapshot: "error" in snap ? snap : { available: formatUsdc(snap.available), reserved: formatUsdc(snap.reserved) },
+        shareSymbol: p.shareSymbol,
+        sharePair: p.sharePair,
+        sharePairUrl: p.sharePair ? addressLink(p.sharePair) : null,
+        snapshot: "error" in snap ? snap : formatSnap(snap),
       };
     }),
   );
@@ -30,8 +50,14 @@ export const GET = handle(async () => {
       pool: c.pool,
       poolUrl: addressLink(c.pool),
       usdc: c.usdc,
-      snapshot: "error" in pool ? pool : { ...pool, available: formatUsdc(pool.available), reserved: formatUsdc(pool.reserved) },
+      snapshot: "error" in pool ? pool : { ...pool, ...formatSnap(pool), available: formatUsdc(pool.available), reserved: formatUsdc(pool.reserved) },
       pools,
+      uniswap: {
+        factory: UNISWAP_V2.factory,
+        factoryUrl: addressLink(UNISWAP_V2.factory),
+        router: UNISWAP_V2.router,
+        routerUrl: addressLink(UNISWAP_V2.router),
+      },
     },
     x402: {
       catalog: "/api/paid/catalog",

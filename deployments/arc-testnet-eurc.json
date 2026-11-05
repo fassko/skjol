@@ -3,16 +3,23 @@
   "chainId": 5042002,
   "currency": "EURC",
   "token": "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
+  "shareName": "Skjol EURC Pool",
+  "shareSymbol": "skjolEURC",
   "forwarder": "0x6E9EE680ef59ef64Aa8C7371279c27E496b5eDc1",
   "forwarderKind": "MockKeystoneForwarder (CRE simulation)",
   "deployer": "0x006B92D63938d9B9e3485077e7A72C9a9944364E",
   "quoteSigner": "0x81986f54507a51BD6633020C58A2C115350b5803",
-  "txs": {
-    "deploy": "0x36a7552b0360221c3a898f53b34988e4c4725190d153d37d727a16b568d69398",
-    "setSimulationOperator": "0x740cc4f5c0623a00dfa0b7aa54b7cf0979cd1460b5f4f677be364b53ef1418f5"
+  "uniswap": {
+    "factory": "0x7483847d46db2920dd64efa676cf72dcf765814f",
+    "router": "0xe27d5d256b370604f1ff060fb489c6a8e3f8a6d9"
   },
-  "pool": "0x5255301d7cb28f29ee6bacb00c72cbccc480cb86",
-  "deployBlock": "70832685",
+  "txs": {
+    "deploy": "0x1ef5b755fb169f220757e8cc971ec290b1f0cb3f1def7ebd381c3cc2e28aefa6",
+    "setSimulationOperator": "0x7ff2c422e11400c815a1e880a9f2da1bfa5734533883d3cb5900f72c303e1244"
+  },
+  "pool": "0x3a68001a32a0a5d174b3ed08ba58d42dd70daa84",
+  "deployBlock": "70855032",
   "simulationOperator": "0x006B92D63938d9B9e3485077e7A72C9a9944364E",
-  "poolBalance": "0"
+  "poolBalance": "0",
+  "deployerShares": "0"
 }

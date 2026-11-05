@@ -1,10 +1,10 @@
 {
   "schedule": "0 */15 * * * *",
   "chainName": "arc-testnet",
-  "poolAddress": "0x45FFfb2133bAD82eC6eBb140db4F3ce2F651B565",
+  "poolAddress": "0xf9a17a1b28eecaa8ef15cae0473c39a9c9e91301",
   "poolAddresses": [
-    "0x45FFfb2133bAD82eC6eBb140db4F3ce2F651B565",
-    "0x5255301D7cB28F29EE6BACB00c72cbCCC480cb86"
+    "0xf9a17a1b28eecaa8ef15cae0473c39a9c9e91301",
+    "0x3a68001a32a0a5d174b3ed08ba58d42dd70daa84"
   ],
   "gasLimit": "600000",
   "digitrafficBaseUrl": "http://localhost:3000/api/replay",

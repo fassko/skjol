@@ -3,7 +3,7 @@ import { FleetGrid, GrowthChart, PremiumBars } from "./components/market";
 
 const STEPS = [
   { n: "01", t: "Upload", d: "Share your bill of lading. It is encrypted before storage; AI reads the vessel, voyage, port and dates and shows you where each value came from." },
-  { n: "02", t: "Confirm & buy", d: "You check every detail. Prices and payouts are fixed. Pay a small premium in test USDC; the payout is reserved in the pool the moment you buy." },
+  { n: "02", t: "Confirm & buy", d: "You check every detail. Prices and payouts are fixed. Pay a small premium in test USDC; the payout is reserved from the shared capital pool the moment you buy." },
   { n: "03", t: "We watch the port", d: "Arrival records for your port — official port-call records in Finland, vessel tracking in India — are checked against your agreed deadline. Changing ETAs never move your deadline." },
   { n: "04", t: "Automatic payout", d: "If the recorded arrival is more than 24 hours late, the fixed payout is sent to your wallet. Missing or conflicting data never closes your cover." },
 ];
@@ -140,9 +140,12 @@ export default function Home() {
           <div className="font-display text-xl font-semibold">Built on</div>
           <Link href="/integrations" className="text-xs underline text-muted">See exactly what is live →</Link>
         </div>
-        <div><strong>Arc</strong><p className="text-ink-2">USDC premiums, reserved collateral and payouts in a smart contract.</p></div>
+        <div><strong>Arc</strong><p className="text-ink-2">Shared USDC capital pool with tradeable vault shares, reserved payouts and settlements.</p></div>
         <div><strong>Chainlink CRE</strong><p className="text-ink-2">Workflow that fetches port-call records and submits arrival evidence.</p></div>
         <div><strong>Arkiv + Swarm</strong><p className="text-ink-2">Queryable, encrypted application records and encrypted document storage.</p></div>
+        <div className="md:col-span-4 text-xs text-muted">
+          Capital providers mint shares on deposit and can trade them on Uniswap — <Link href="/capital" className="underline">open Capital</Link>.
+        </div>
       </section>
     </div>
   );
