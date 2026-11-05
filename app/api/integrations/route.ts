@@ -3,7 +3,7 @@ import { ARC_TESTNET, ARKIV_RABDI, chainConfig, config, hederaConfig, poolConfig
 import { addressLink, poolSnapshot, txLink } from "@/lib/chain";
 import { SCHEMA_NAMES, writerAddresses } from "@/lib/store/arkiv";
 import { store } from "@/lib/store";
-import { swarmLabel, swarmMode } from "@/lib/swarm";
+import { swarmLabel, swarmMode, swarmPrizeReady } from "@/lib/swarm";
 import { formatUsdc } from "@/shared/products";
 
 export const GET = handle(async () => {
@@ -57,7 +57,20 @@ export const GET = handle(async () => {
         txUrl: txLink(e.txHash),
       })),
     },
-    swarm: { mode: swarmMode(), label: swarmLabel(swarmMode()), api: config.swarmApiUrl() },
+    swarm: {
+      mode: swarmMode(),
+      label: swarmLabel(swarmMode()),
+      api: config.swarmApiUrl(),
+      postageConfigured: !!config.swarmBatchId(),
+      postageNote:
+        swarmMode() === "gateway" && !config.swarmBatchId()
+          ? "Public gateway stamps uploads server-side (no client-held batch)."
+          : swarmMode() === "bee" && !config.swarmBatchId()
+            ? "Set SWARM_POSTAGE_BATCH_ID for bee mode."
+            : null,
+      prizeReady: swarmPrizeReady(),
+      docs: "/arkiv/swarm.md",
+    },
     cre: {
       chainName: ARC_TESTNET.creChainName,
       forwarder: "error" in pool ? null : pool.forwarder,
@@ -69,7 +82,7 @@ export const GET = handle(async () => {
       deployed: !("error" in pool) && !!pool.forwarder && pool.forwarder.toLowerCase() === ARC_TESTNET.creProductionForwarder.toLowerCase(),
       mode: sim ? "simulation" : "production-forwarder",
     },
-    ai: { enabled: config.aiEnabled(), model: config.aiEnabled() ? config.aiModel() : null },
+    ai: { enabled: config.aiEnabled() },
     flags: { replay: config.replayEnabled(), demoProducts: config.demoProductsEnabled(), demoWallet: config.demoCustomerEnabled() },
   };
 });

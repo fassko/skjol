@@ -112,8 +112,10 @@ export const config = {
   storeBackend: () => (opt("STORE_BACKEND") ?? "arkiv") as "arkiv" | "memory",
   masterKey: () => req("SKJOL_MASTER_KEY"),
   sessionSecret: () => req("SESSION_SECRET"),
+  /** gateway | bee require SWARM_POSTAGE_BATCH_ID. local-dev skips Swarm (not for prize demos). */
   swarmMode: () => (opt("SWARM_MODE") ?? "gateway") as "gateway" | "bee" | "local-dev",
   swarmApiUrl: () => opt("SWARM_API_URL") ?? "https://api.gateway.ethswarm.org",
+  /** Postage stamp batch id sent as Swarm-Postage-Batch-Id on every non-local upload. */
   swarmBatchId: () => opt("SWARM_POSTAGE_BATCH_ID"),
   aiModel: () => opt("AI_MODEL") ?? "google/gemini-3.8-flash",
   aiEnabled: () => !!(opt("AI_GATEWAY_API_KEY") || opt("VERCEL_OIDC_TOKEN")),

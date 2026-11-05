@@ -9,6 +9,7 @@ import { signQuote } from "./chain";
 import { storeDocument } from "./swarm";
 import { HttpError, type Session } from "./session";
 import { store, type PolicyPrivate, type PolicyRecord, type QuotePrivate, type ShipmentPrivate, type ShipmentRecord } from "./store";
+import { parseDocDate } from "../shared/dates";
 import { PRODUCTS, checkEligibility, formatUsdc, isValidImo, normaliseLocode, type ConfirmedShipment, type Currency, type ProductId } from "../shared/products";
 import { buildQuoteMessage } from "../shared/quote";
 
@@ -49,6 +50,21 @@ export async function loadOwnedShipment(shipmentId: string, session: Session) {
   return { rec, priv };
 }
 
+function requiredDate(label: string) {
+  return z
+    .string()
+    .trim()
+    .min(1, `Enter the ${label}.`)
+    .transform((s, ctx) => {
+      const iso = parseDocDate(s);
+      if (!iso) {
+        ctx.addIssue({ code: "custom", message: `${label} is not a valid date.` });
+        return z.NEVER;
+      }
+      return iso;
+    });
+}
+
 export const ConfirmedShipmentSchema = z.object({
   vesselName: z.string().trim().min(2).max(60),
   vesselImo: z.string().trim().refine(isValidImo, "Enter a valid 7-digit IMO number"),
@@ -56,8 +72,8 @@ export const ConfirmedShipmentSchema = z.object({
   voyageRef: z.string().trim().min(2).max(40),
   originPort: z.string().trim().min(2).max(80),
   destinationLocode: z.string().trim().transform(normaliseLocode).pipe(z.string().regex(/^[A-Z]{2}[A-Z0-9]{3}$/)),
-  departureDate: z.string().datetime(),
-  agreedArrivalDeadline: z.string().datetime(),
+  departureDate: requiredDate("departure / sailing date"),
+  agreedArrivalDeadline: requiredDate("agreed arrival deadline"),
 });
 
 /** Customer confirmation is mandatory before quoting. Unresolved conflicts must be answered. */

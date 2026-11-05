@@ -8,6 +8,7 @@ import { HttpError, demoCustomer, type Session } from "./session";
 import { store, type QuotePrivate } from "./store";
 import { createWalletClient, http } from "viem";
 import { viemChain } from "./chain";
+import { explainPurchaseError } from "../shared/purchase-error";
 
 export function quoteArgs(message: Record<string, string | number>) {
   return {
@@ -40,10 +41,8 @@ export async function loadOwnedQuote(quoteId: string, session: Session) {
   return { record: q, priv, pool, args: quoteArgs(priv.message) };
 }
 
-/** Demo wallet purchase (server-held TEST key). Real wallets sign the same two calls in the browser. */
-export async function purchaseWithDemoWallet(quoteId: string, session: Session) {
-  const acct = demoCustomer();
-  if (!acct || !session.demo || session.address !== acct.address) throw new HttpError(403, "Demo purchases are only available with the demo wallet.");
+/** Pay a quote's premium with a server-held account. Beneficiary stays the session that owns the quote. */
+async function purchaseWithServerAccount(quoteId: string, session: Session, acct: NonNullable<ReturnType<typeof demoCustomer>>) {
   const { priv, pool, args } = await loadOwnedQuote(quoteId, session);
   const c = chainConfig();
   const token: Address = pool.token;
@@ -61,11 +60,24 @@ export async function purchaseWithDemoWallet(quoteId: string, session: Session) 
   try {
     await pub.simulateContract({ address: pool.pool, abi: poolAbi, functionName: "purchase", args: [args, priv.signature as Hex], account: acct });
   } catch (e) {
-    const name = (e as { cause?: { data?: { errorName?: string } } }).cause?.data?.errorName ?? (e as Error).message.slice(0, 160);
-    throw new HttpError(409, `The pool rejected this purchase: ${name}`);
+    throw new HttpError(409, explainPurchaseError(e, { currency: pool.currency, pool: pool.pool }));
   }
   const hash = await wallet.writeContract({ address: pool.pool, abi: poolAbi, functionName: "purchase", args: [args, priv.signature as Hex] });
   const receipt = await pub.waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") throw new HttpError(500, "Purchase transaction failed.");
   return { policyId: args.policyId, currency: pool.currency, premiumUnits: args.premium, approveTx, purchaseTx: hash, purchaseTxUrl: txLink(hash) };
+}
+
+/** Demo wallet purchase for the cover flow. Real wallets sign the same two calls in the browser. */
+export async function purchaseWithDemoWallet(quoteId: string, session: Session) {
+  const acct = demoCustomer();
+  if (!acct || !session.demo || session.address !== acct.address) throw new HttpError(403, "Demo purchases are only available with the demo wallet.");
+  return purchaseWithServerAccount(quoteId, session, acct);
+}
+
+/** Freight agent purchase: any logged-in session; premium paid from the server-held TEST key. */
+export async function purchaseWithAgentFunds(quoteId: string, session: Session) {
+  const acct = demoCustomer();
+  if (!acct) throw new HttpError(403, "The freight agent needs the demo wallet key configured (test funds only).");
+  return purchaseWithServerAccount(quoteId, session, acct);
 }

@@ -10,6 +10,8 @@ import { DataLabel, ErrorNote, ExtLink, Spinner, TestFunds } from "./ui";
 import { arcTestnet } from "./wagmi";
 import { BridgeEurc } from "./bridge-eurc";
 import { EVIDENCE_SOURCES, PORTS, PORT_COUNTRIES, portInfo, type PortCountry } from "@/shared/ports";
+import { parseDocDate } from "@/shared/dates";
+import { explainPurchaseError, insufficientCollateralMessage } from "@/shared/purchase-error";
 
 // ------------------------------------------------------------------ types
 export interface Field { value: string | null; sourceExcerpt: string | null; page: number | null; status: "found" | "missing" | "conflicting" | "unverified" }
@@ -20,7 +22,20 @@ export interface Extraction {
   issues: { field: string; kind: string; message: string }[];
   pages: number;
 }
-export interface UploadResult { shipmentId: string; extraction: Extraction; storage: { mode: string; reference: string; size: number }; arkivKey?: string }
+export interface UploadResult {
+  shipmentId: string;
+  extraction: Extraction;
+  storage: {
+    mode: string;
+    reference: string;
+    size: number;
+    tagUid?: number | null;
+    ciphertextUrl?: string | null;
+    label?: string;
+  };
+  arkivKey?: string;
+  arkivUrl?: string | null;
+}
 export interface Offer {
   quoteId: Hex; policyId: Hex; productId: string; productName: string; premium: string; payout: string;
   thresholdHours: number; agreedArrivalDeadline: string; purchaseCutoff: string; quoteExpiry: string; terms: string;
@@ -140,7 +155,10 @@ const LABELS: Record<string, string> = {
   agreedArrivalDeadline: "Agreed arrival deadline (UTC)",
 };
 const EDITABLE = Object.keys(LABELS);
-const toLocalInput = (iso: string | null) => (iso ? iso.slice(0, 16) : "");
+const toLocalInput = (raw: string | null) => {
+  const iso = raw ? parseDocDate(raw) : null;
+  return iso ? iso.slice(0, 16) : "";
+};
 
 export function ReviewForm({ shipmentId, extraction, onConfirmed }: { shipmentId: string; extraction: Extraction; onConfirmed: (shipment: Record<string, string>) => void }) {
   const initial = useMemo(() => {
@@ -180,7 +198,7 @@ export function ReviewForm({ shipmentId, extraction, onConfirmed }: { shipmentId
   return (
     <div className="space-y-4">
       <div className="text-sm text-ink-2 flex flex-wrap items-center gap-2">
-        Read by {extraction.source === "ai" ? <>AI assistant ({extraction.model})</> : <>offline document rules (AI not configured)</>}. Please check every
+        Read by {extraction.source === "ai" ? <>the AI assistant</> : <>offline document rules (AI not configured)</>}. Please check every
         value against your document — nothing is final until you confirm.
       </div>
       {extraction.issues.length > 0 && (
@@ -387,6 +405,22 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
     query: { enabled: !!session && !session.demo },
   });
   const approved = (allowance.data ?? 0n) >= args.premium;
+  const capital = useReadContract({
+    address: offer.pool,
+    abi: poolAbi,
+    functionName: "availableCapital",
+    chainId: arcTestnet.id,
+  });
+  const free = capital.data;
+  const collateralMessage = free !== undefined && free + args.premium < args.payout
+    ? insufficientCollateralMessage({
+        currency: offer.currency,
+        pool: offer.pool,
+        availableAfterPremium: free + args.premium,
+        payout: args.payout,
+      })
+    : null;
+  const collateralShort = collateralMessage !== null;
 
   async function guarded(label: string, fn: () => Promise<void>) {
     setError(null);
@@ -394,8 +428,7 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
     try {
       await fn();
     } catch (e) {
-      const err = e as { shortMessage?: string; code?: number };
-      setError(err.code === 4001 ? "You cancelled the request in your wallet." : (err.shortMessage ?? (e as Error).message));
+      setError(explainPurchaseError(e, { currency: offer.currency, pool: offer.pool }));
     } finally {
       setStep(null);
     }
@@ -424,10 +457,15 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
 
   const buyWithWallet = () =>
     guarded("Confirm the purchase in your wallet…", async () => {
+      // Simulate first so a revert (underfunded pool, expired quote) is explained before the wallet opens.
+      await client!.simulateContract({ address: offer.pool, abi: poolAbi, functionName: "purchase", args: [args, offer.signature], account: address });
       const hash = await writeContractAsync({ address: offer.pool, abi: poolAbi, functionName: "purchase", args: [args, offer.signature], chainId: arcTestnet.id });
       setStep("Waiting for confirmation…");
       const r = await client!.waitForTransactionReceipt({ hash });
-      if (r.status !== "success") throw new Error("The purchase transaction failed.");
+      if (r.status !== "success") {
+        await client!.simulateContract({ address: offer.pool, abi: poolAbi, functionName: "purchase", args: [args, offer.signature], account: address });
+        throw new Error("The purchase transaction failed.");
+      }
       setStep("Updating your dashboard…");
       await api("/api/sync", { method: "POST" }).catch(() => {});
       onDone({ policyId: offer.policyId, purchaseTx: hash, purchaseTxUrl: `${arcTestnet.blockExplorers.default.url}/tx/${hash}` });
@@ -456,7 +494,7 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
       </label>
       <div className="flex flex-wrap gap-2">
         {session?.demo ? (
-          <button className="btn btn-signal" disabled={!agree || !!step} onClick={buyWithDemo}>
+          <button className="btn btn-signal" disabled={!agree || !!step || collateralShort} onClick={buyWithDemo}>
             Buy with demo wallet ({offer.premium} test {offer.currency})
           </button>
         ) : (
@@ -491,7 +529,7 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
                 </button>
               </li>
               <li>
-                <button className="btn btn-signal" disabled={!agree || !!step || !onArc || !approved} onClick={buyWithWallet}>
+                <button className="btn btn-signal" disabled={!agree || !!step || !onArc || !approved || collateralShort} onClick={buyWithWallet}>
                   3. Buy cover
                 </button>
               </li>
@@ -502,7 +540,7 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
       </div>
       {offer.currency === "EURC" && <BridgeEurc defaultAmount={offer.premium} />}
       {step && <Spinner label={step} />}
-      <ErrorNote error={error} />
+      <ErrorNote error={error ?? collateralMessage} />
       <p className="text-xs text-muted">{offer.currency} pool contract <span className="mono">{short(offer.pool)}</span> on Arc Testnet.</p>
     </div>
   );

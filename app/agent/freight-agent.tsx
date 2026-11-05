@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmTool } from "../components/assistant";
 import { api, fmtDate, short } from "../components/api";
 import { ConnectStep, SAMPLES, type UploadResult } from "../components/cover-steps";
+import { Markdown } from "../components/markdown";
 import { useSession } from "../components/session";
 import { ErrorNote, ExtLink, Spinner } from "../components/ui";
 
@@ -41,8 +42,8 @@ export function FreightAgent({ aiEnabled }: { aiEnabled: boolean }) {
     api<WalletView>("/api/freight-agent/settings").then(setWallet).catch((e) => setWalletError(e.message));
   }, []);
   useEffect(() => {
-    if (session?.demo) refresh();
-  }, [session?.demo, refresh]);
+    if (session) refresh();
+  }, [session, refresh]);
 
   if (loading) return <Spinner label="Loading…" />;
   return (
@@ -54,10 +55,6 @@ export function FreightAgent({ aiEnabled }: { aiEnabled: boolean }) {
       {!session ? (
         <div className="card p-4">
           <ConnectStep />
-        </div>
-      ) : !session.demo ? (
-        <div className="card p-4 text-sm space-y-2">
-          <p>The agent spends from a server-held test wallet, so it runs with the demo wallet. Sign out and choose “Use demo wallet”.</p>
         </div>
       ) : !aiEnabled ? (
         <ErrorNote error="The AI agent is not configured on this deployment (no AI Gateway credentials)." />
@@ -106,7 +103,7 @@ function AgentChat({ onSpend }: { onSpend: () => void }) {
   const [input, setInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { messages, sendMessage, addToolOutput, status, error } = useChat({
+  const { messages, setMessages, sendMessage, addToolOutput, status, error, clearError, stop } = useChat({
     transport: new DefaultChatTransport({ api: "/api/freight-agent" }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onFinish: onSpend,
@@ -116,6 +113,14 @@ function AgentChat({ onSpend }: { onSpend: () => void }) {
     end.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
   const busy = status === "submitted" || status === "streaming";
+
+  function clearMessages() {
+    if (busy) stop();
+    setMessages([]);
+    clearError();
+    setUploadError(null);
+    setInput("");
+  }
 
   async function sample(name: string) {
     setUploading(true);
@@ -136,6 +141,13 @@ function AgentChat({ onSpend }: { onSpend: () => void }) {
 
   return (
     <div className="card flex flex-col h-[68vh] min-h-[460px]">
+      {messages.length > 0 && (
+        <div className="flex items-center justify-end border-b border-line px-3 py-2">
+          <button type="button" className="btn btn-ghost !py-1 !px-3 !text-xs" onClick={clearMessages}>
+            Clear messages
+          </button>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-sm text-ink-2 space-y-3">
@@ -161,7 +173,12 @@ function AgentChat({ onSpend }: { onSpend: () => void }) {
           <div key={m.id} className={m.role === "user" ? "flex justify-end" : ""}>
             <div className={m.role === "user" ? "bg-ink text-paper rounded-2xl rounded-br-sm px-4 py-2 max-w-[85%] text-sm" : "space-y-2 text-sm max-w-full"}>
               {m.parts.map((p: any, i: number) => {
-                if (p.type === "text") return <p key={i} className="whitespace-pre-wrap leading-relaxed">{p.text}</p>;
+                if (p.type === "text")
+                  return m.role === "user" ? (
+                    <p key={i} className="whitespace-pre-wrap leading-relaxed">{p.text}</p>
+                  ) : (
+                    <Markdown key={i} text={p.text} />
+                  );
                 if (p.type === "tool-requestConfirmation") return <ConfirmTool key={i} part={p} addToolOutput={addToolOutput} />;
                 if (p.type === "tool-requestApproval") return <ApprovalTool key={i} part={p} addToolOutput={addToolOutput} />;
                 if (p.type === "tool-callPaidService") return <PaidCallChip key={i} part={p} />;

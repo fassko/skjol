@@ -7,6 +7,7 @@ import { getPolicyView } from "./insurance";
 import type { Session } from "./session";
 import { store, type EvaluationPrivate, type ShipmentPrivate } from "./store";
 import { ARKIV_EXPLORER, SCHEMA_NAMES, arkivCurrentBlock, writerAddresses } from "./store/arkiv";
+import { storageSummary } from "./swarm";
 import { ARKIV_RABDI } from "./config";
 import { SUPPORTED_PORTS, formatUsdc } from "../shared/products";
 
@@ -81,10 +82,39 @@ export async function policyDetail(policyId: Hex, session: Session | null) {
       if (blk) blockTimes.set(b, new Date(Number(blk.timestamp) * 1000).toISOString());
     }),
   );
+  let documentStorage: {
+    shipmentId: string;
+    arkivKey: string | null;
+    arkivUrl: string | null;
+    storage: ReturnType<typeof storageSummary>;
+  } | null = null;
+  if (view.owned && view.priv?.shipmentId) {
+    const shipment = await store().getShipment(view.priv.shipmentId);
+    if (shipment) {
+      try {
+        const shp = openJson<ShipmentPrivate>(shipment.sealed, `shipment:${shipment.shipmentId}`);
+        documentStorage = {
+          shipmentId: shipment.shipmentId,
+          arkivKey: shipment.key ?? null,
+          arkivUrl: shipment.key ? `${ARKIV_EXPLORER}/entity/${shipment.key}` : null,
+          storage: storageSummary({
+            mode: shp.document.mode as "gateway" | "bee" | "local-dev",
+            reference: shp.document.reference,
+            size: shp.document.size,
+            tagUid: shp.document.tagUid ?? null,
+          }),
+        };
+      } catch {
+        documentStorage = null;
+      }
+    }
+  }
+
   return {
     ...summary(view.policy, view.priv),
     owned: view.owned,
     arkiv,
+    documentStorage,
     terms: view.priv?.terms ?? null,
     chain: { id: c.id, name: c.name, pool: view.policy.pool || c.pool, explorer: c.explorer },
     onchain: onchain
