@@ -2,8 +2,15 @@
 // Pure TypeScript (depends only on viem) so the Next.js backend, tests and the CRE workflow
 // share one definition. AI never prices, decides eligibility or computes payouts.
 import { keccak256, stringToHex } from "viem";
+import { PORT_COUNTRIES, SUPPORTED_PORTS, normaliseLocode, portInfo, type EvidenceSourceKey } from "./ports";
+
+export { SUPPORTED_PORTS, normaliseLocode };
 
 export const USDC_DECIMALS = 6;
+
+/** Settlement token of a pool. Both are 6-decimal Circle stablecoins; amounts use the same units. */
+export type Currency = "USDC" | "EURC";
+export const CURRENCIES: Currency[] = ["USDC", "EURC"];
 export const EVENT_VESSEL_ARRIVAL_AT_PORT = 1 as const;
 
 export type ProductId = "delay-standard-24h" | "delay-plus-24h" | "demo-fast-2m";
@@ -67,34 +74,11 @@ export const PRODUCTS: Record<ProductId, Product> = {
 
 export const QUOTE_VALIDITY_SEC = 30 * 60;
 
-/** Finnish ports with Digitraffic port-call coverage used by this MVP (UN/LOCODE). */
-export const SUPPORTED_PORTS: Record<string, string> = {
-  FIHEL: "Helsinki",
-  FIHKO: "Hanko",
-  FIKOK: "Kokkola",
-  FIKTK: "Kotka",
-  FIHMN: "Hamina",
-  FIOUL: "Oulu",
-  FIPOR: "Pori",
-  FIRAU: "Rauma",
-  FITKU: "Turku",
-  FIVAA: "Vaasa",
-  FINLI: "Naantali",
-  FIKAS: "Kaskinen",
-  FILOV: "Loviisa",
-  FIUKI: "Uusikaupunki",
-  FIINK: "Inkoo",
-};
-
 export function isValidImo(imo: string | number): boolean {
   const s = String(imo).trim();
   if (!/^\d{7}$/.test(s)) return false;
   const sum = [...s.slice(0, 6)].reduce((acc, d, i) => acc + Number(d) * (7 - i), 0);
   return sum % 10 === Number(s[6]);
-}
-
-export function normaliseLocode(v: string): string {
-  return v.replace(/\s+/g, "").toUpperCase();
 }
 
 export function locodeToBytes32(locode: string): `0x${string}` {
@@ -133,7 +117,11 @@ export function checkEligibility(
   s: ConfirmedShipment,
   product: Product,
   nowSec: number,
-  opts: { demoProductsEnabled: boolean },
+  opts: {
+    demoProductsEnabled: boolean;
+    /** Evidence sources that can settle this product here. Omitted: every source counts as available. */
+    availableSources?: EvidenceSourceKey[];
+  },
 ): EligibilityIssue[] {
   const issues: EligibilityIssue[] = [];
   if (product.demoOnly && !opts.demoProductsEnabled) {
@@ -142,12 +130,18 @@ export function checkEligibility(
   if (!isValidImo(s.vesselImo)) {
     issues.push({ field: "vesselImo", code: "INVALID_IMO", message: "A valid 7-digit IMO number is required." });
   }
-  const locode = normaliseLocode(s.destinationLocode);
-  if (!SUPPORTED_PORTS[locode]) {
+  const port = portInfo(s.destinationLocode);
+  if (!port) {
     issues.push({
       field: "destinationLocode",
       code: "UNSUPPORTED_PORT",
-      message: "Destination must be a supported Finnish port (arrival data comes from Digitraffic).",
+      message: `Destination must be a supported port in ${Object.values(PORT_COUNTRIES).join(" or ")}.`,
+    });
+  } else if (opts.availableSources && !opts.availableSources.includes(port.source)) {
+    issues.push({
+      field: "destinationLocode",
+      code: "PORT_DATA_UNAVAILABLE",
+      message: `Arrival data for ${port.name} is not connected in this environment yet, so this cover cannot be offered there.`,
     });
   }
   if (!s.voyageRef.trim()) issues.push({ field: "voyageRef", code: "MISSING", message: "Voyage reference is required." });
@@ -177,6 +171,13 @@ export function checkEligibility(
 
 export const TERMS_VERSION = "skjol-arrival-delay-terms-v1";
 
+/** The Digitraffic wording is unchanged so terms hashes of existing Finnish policies stay valid. */
+const EVIDENCE_WORDING: Record<EvidenceSourceKey, string> = {
+  digitraffic: "official port-call arrival records (Fintraffic Digitraffic).",
+  vesselfinder:
+    "port arrival events detected from the vessel's AIS position reports (VesselFinder). Only an arrival inside the port counts; waiting at an outer anchorage is not arrival.",
+};
+
 /** Human-readable policy wording. Its hash is locked onchain at purchase. */
 export function policyTerms(p: {
   product: Product;
@@ -184,8 +185,12 @@ export function policyTerms(p: {
   vesselImo: string;
   destinationLocode: string;
   agreedArrivalDeadline: string;
+  /** Defaults to USDC; the USDC wording is unchanged so earlier terms hashes stay valid. */
+  currency?: Currency;
 }): string {
-  const port = SUPPORTED_PORTS[normaliseLocode(p.destinationLocode)] ?? p.destinationLocode;
+  const info = portInfo(p.destinationLocode);
+  const port = info?.name ?? p.destinationLocode;
+  const cur = p.currency ?? "USDC";
   const hours = p.product.delayThresholdSec / 3600;
   const threshold = hours >= 1 ? `${hours} hours` : `${p.product.delayThresholdSec / 60} minutes`;
   return [
@@ -195,9 +200,9 @@ export function policyTerms(p: {
       p.destinationLocode,
     )}).`,
     `Agreed arrival deadline: ${p.agreedArrivalDeadline} (UTC). This deadline is fixed and does not change when ETAs change.`,
-    `Payout: a fixed ${formatUsdc(p.product.payout)} USDC (testnet) if the recorded arrival is more than ${threshold} after the agreed deadline. Arrival exactly at the threshold does not qualify.`,
-    `Premium: ${formatUsdc(p.product.premium)} USDC (testnet), payable once at purchase.`,
-    `Evidence: official port-call arrival records (Fintraffic Digitraffic). Missing, stale or conflicting records keep the policy pending; they never close it automatically.`,
+    `Payout: a fixed ${formatUsdc(p.product.payout)} ${cur} (testnet) if the recorded arrival is more than ${threshold} after the agreed deadline. Arrival exactly at the threshold does not qualify.`,
+    `Premium: ${formatUsdc(p.product.premium)} ${cur} (testnet), payable once at purchase.`,
+    `Evidence: ${EVIDENCE_WORDING[info?.source ?? "digitraffic"]} Missing, stale or conflicting records keep the policy pending; they never close it automatically.`,
     `Not covered: container unloading, customs clearance, terminal delays, inland transport or delivery to you. A vessel can arrive on time while your container is delivered late.`,
   ].join("\n");
 }

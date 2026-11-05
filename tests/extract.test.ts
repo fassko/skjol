@@ -44,6 +44,17 @@ describe("document extraction (offline rules)", () => {
     expect(x.fields.destinationLocode.value).toBe("FITKU");
   });
 
+  it("extracts an Indian destination (Nhava Sheva) as a supported port", async () => {
+    const x = await extractShipment(doc("bl-indus-heron.txt"));
+    expect(x.fields.vesselName.value).toBe("INDUS HERON");
+    expect(x.fields.vesselImo.value).toBe("9700055");
+    expect(x.fields.voyageRef.value).toBe("IH-118W");
+    expect(x.fields.destinationLocode.value).toBe("INNSA");
+    expect(x.fields.agreedArrivalDeadline.value).toBe("2026-12-10T12:00:00.000Z");
+    expect(x.fields.eta.value).toBe("2026-12-09T22:00:00.000Z");
+    expect(x.issues.filter((i) => i.field === "destinationLocode")).toEqual([]);
+  });
+
   it("flags conflicting vessel, IMO and port", async () => {
     const x = await extractShipment(doc("bl-conflicting-imo.txt"));
     const conflicted = x.issues.filter((i) => i.kind === "conflicting").map((i) => i.field);

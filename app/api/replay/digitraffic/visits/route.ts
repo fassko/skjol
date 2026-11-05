@@ -3,7 +3,7 @@ import { config } from "@/lib/config";
 import { replayScenarioForImo } from "@/lib/digitraffic";
 import { store } from "@/lib/store";
 import { observationAt } from "@/fixtures/scenarios";
-import type { ArrivalEvidence } from "@/shared/evidence";
+import { DIGITRAFFIC_SOURCE, type ArrivalEvidence } from "@/shared/evidence";
 
 // REPLAY SOURCE — synthetic/recorded data only, always labelled. Mirrors the Digitraffic v2 visits
 // response (array of visits) and adds `skjolReplay: { retrievedAt, label }` to each visit so
@@ -21,15 +21,16 @@ export async function GET(req: Request) {
 
   const s = replayScenarioForImo(imo, u.searchParams.get("voyage") ?? undefined);
   const obs = s ? observationAt(s, clock) : null;
-  const fixtureVisits = obs
-    ? obs.visits.filter((v) => !port || v.portOfCall === port).map((v) => ({ ...v, skjolReplay: { retrievedAt: obs.retrievedAt, label: s!.label } }))
-    : [];
+  const fixtureVisits = (obs?.visits ?? [])
+    .filter((v) => !port || v.portOfCall === port)
+    .map((v) => ({ ...v, skjolReplay: { retrievedAt: obs!.retrievedAt, label: s!.label } }));
 
   const synthetic = /^\d{7}$/.test(imo) && port ? await store().listSyntheticObservations(Number(imo), port) : [];
   const syntheticVisits = synthetic
     .filter((o) => o.retrievedAtSec * 1000 <= clockMs)
-    .map((o) => {
-      const e = JSON.parse(o.record) as ArrivalEvidence;
+    .map((o) => JSON.parse(o.record) as ArrivalEvidence)
+    .filter((e) => e.source === DIGITRAFFIC_SOURCE)
+    .map((e) => {
       return {
         visitId: e.sourceRecordId,
         vesselId: e.vesselImo ?? undefined,

@@ -1,7 +1,8 @@
 # Targets:
 #   replay-settings  -> app replay source (synthetic/recorded, labelled), demo clock allowed
-#   staging-settings -> live Digitraffic, simulation (MockKeystoneForwarder on Arc Testnet)
-#   production-settings -> live Digitraffic, for a deployed workflow (KeystoneForwarder)
+#   staging-settings -> live Digitraffic / VesselFinder, simulation (MockKeystoneForwarder on Arc Testnet)
+#   production-settings -> live Digitraffic / VesselFinder, for a deployed workflow (KeystoneForwarder)
+# Live targets read the VesselFinder key from ../secrets.yaml (needed only for Indian ports).
 replay-settings:
   user-workflow:
     workflow-name: "skjol-arrival-replay"
@@ -15,11 +16,11 @@ staging-settings:
   workflow-artifacts:
     workflow-path: "./main.ts"
     config-path: "./config.live.json"
-    secrets-path: ""
+    secrets-path: "../secrets.yaml"
 production-settings:
   user-workflow:
     workflow-name: "skjol-arrival"
   workflow-artifacts:
     workflow-path: "./main.ts"
     config-path: "./config.live.json"
-    secrets-path: ""
+    secrets-path: "../secrets.yaml"

@@ -1,0 +1,15 @@
+SYNTHETIC DEMO DOCUMENT — NOT A REAL SHIPMENT
+===============================================
+BILL OF LADING                                        Page 1 of 1
+B/L No.: JEA-IH-44018             Booking Ref: JEA-71260
+Shipper: Al Noor Packaging FZE, Jebel Ali Free Zone
+Consignee: Konkan Home Goods Pvt Ltd, Navi Mumbai
+
+Vessel: INDUS HERON      IMO No. 9700055
+Voyage: IH-118W
+Port of Loading: Jebel Ali (AEJEA)      Port of Discharge: Nhava Sheva (INNSA)
+Laden on board: 2 December 2026, 08:00 UTC
+Arrival deadline agreed in sales contract SC-2291: 10 December 2026, 12:00 UTC
+ETA Nhava Sheva: 9 December 2026, 22:00 UTC
+
+Goods: 2 x 40' HC containers, household plastics

@@ -1,19 +1,29 @@
 // Deterministic demo scenarios. EVERYTHING HERE IS SYNTHETIC unless marked "recorded".
 // Vessel names and IMO numbers are fictitious (valid IMO check digit, not real ships).
-// Observations use the Digitraffic port-call v2 record shape so the same normaliser and
-// assessment code runs on replay and live data. Timestamps are fixed and never rewritten;
-// the demo clock moves, the evidence does not.
-import type { DigitrafficVisit } from "../shared/evidence";
+// Observations use the record shape of the port's live source (Digitraffic v2 visits for Finland,
+// VesselFinder port calls for India) so the same normalisers and assessment code run on replay and
+// live data. Timestamps are fixed and never rewritten; the demo clock moves, the evidence does not.
+import {
+  normaliseDigitrafficVisit,
+  normaliseVesselFinderRows,
+  type ArrivalEvidence,
+  type DigitrafficVisit,
+  type EvidenceOrigin,
+  type VesselFinderRow,
+} from "../shared/evidence";
 import type { ConfirmedShipment, ProductId } from "../shared/products";
 
 export interface ReplayObservation {
   /** Original retrieval time of this observation (kept as-is when the demo clock advances). */
   retrievedAt: string;
-  visits: DigitrafficVisit[];
+  /** Digitraffic-shaped records (Finnish ports). */
+  visits?: DigitrafficVisit[];
+  /** VesselFinder-shaped records (Indian ports). */
+  portCalls?: VesselFinderRow[];
 }
 
 export interface DemoScenario {
-  id: "on-time" | "late" | "missing-stale" | "duplicate" | "conflicting";
+  id: "on-time" | "late" | "missing-stale" | "duplicate" | "conflicting" | "mumbai-late";
   title: string;
   expected: string;
   document: string; // file in fixtures/documents
@@ -219,6 +229,41 @@ export const SCENARIOS: DemoScenario[] = [
       },
     ],
   },
+  {
+    id: "mumbai-late",
+    title: "Vessel reaches Nhava Sheva (Mumbai) more than 24 hours late",
+    expected: "Pending while no arrival is recorded, then a fixed payout once the late arrival is recorded.",
+    document: "bl-indus-heron.txt",
+    productId: "delay-standard-24h",
+    label: "synthetic",
+    shipment: {
+      vesselName: "INDUS HERON",
+      vesselImo: "9700055",
+      vesselMmsi: "419990005",
+      voyageRef: "IH-118W",
+      originPort: "Jebel Ali (AEJEA)",
+      destinationLocode: "INNSA",
+      departureDate: DEPARTURE,
+      agreedArrivalDeadline: DEADLINE,
+    },
+    // VesselFinder is queried by IMO, so events at other ports come back too and must be ignored.
+    evaluateAt: ["2026-12-11T09:30:00Z", "2026-12-12T08:30:00Z"],
+    observations: [
+      {
+        retrievedAt: "2026-12-11T09:00:00Z",
+        portCalls: [
+          { PORTCALL: { MMSI: 419990005, IMO: 9700055, LOCODE: "AEJEA", EVENT: "DEPARTURE", TIMESTAMP: "2026-12-02 08:40:00 UTC", PORT: "Jebel Ali", COUNTRY: "United Arab Emirates" } },
+        ],
+      },
+      {
+        retrievedAt: "2026-12-12T08:00:00Z",
+        portCalls: [
+          { PORTCALL: { MMSI: 419990005, IMO: 9700055, LOCODE: "AEJEA", EVENT: "DEPARTURE", TIMESTAMP: "2026-12-02 08:40:00 UTC", PORT: "Jebel Ali", COUNTRY: "United Arab Emirates" } },
+          { PORTCALL: { MMSI: 419990005, IMO: 9700055, LOCODE: "INNSA", EVENT: "ARRIVAL", TIMESTAMP: "2026-12-12 06:10:00 UTC", PORT: "Nhava Sheva", COUNTRY: "India" } },
+        ],
+      },
+    ],
+  },
 ];
 
 /** Latest observation retrieved at or before the given demo clock (replay never peeks ahead). */
@@ -226,4 +271,12 @@ export function observationAt(s: DemoScenario, clockIso: string): ReplayObservat
   const t = Date.parse(clockIso);
   const visible = s.observations.filter((o) => Date.parse(o.retrievedAt) <= t);
   return visible.length ? visible[visible.length - 1] : null;
+}
+
+/** Normalised evidence of one replay observation, keeping its original retrieval time. */
+export function observationEvidence(o: ReplayObservation, origin: EvidenceOrigin): ArrivalEvidence[] {
+  return [
+    ...(o.visits ?? []).map((v) => normaliseDigitrafficVisit(v, o.retrievedAt, origin)),
+    ...normaliseVesselFinderRows(o.portCalls ?? [], o.retrievedAt, origin),
+  ];
 }

@@ -22290,8 +22290,66 @@ function isDynamicType2(param) {
     return isDynamicType2({ ...param, type: arrayComponents[1] });
   return false;
 }
+var EVIDENCE_SOURCES = {
+  digitraffic: {
+    key: "digitraffic",
+    id: "digitraffic.port-call.v2",
+    name: "Fintraffic Digitraffic",
+    kind: "port-authority",
+    description: "Official Finnish port-call records",
+    requiresApiKey: false
+  },
+  vesselfinder: {
+    key: "vesselfinder",
+    id: "vesselfinder.portcalls.v1",
+    name: "VesselFinder",
+    kind: "ais",
+    description: "Port arrivals detected from the vessel's AIS position reports",
+    requiresApiKey: true
+  }
+};
+var fi = (locode, name) => ({ locode, name, country: "FI", source: "digitraffic" });
+var india = (locode, name) => ({ locode, name, country: "IN", source: "vesselfinder" });
+var PORTS = [
+  fi("FIHEL", "Helsinki"),
+  fi("FIHKO", "Hanko"),
+  fi("FIKOK", "Kokkola"),
+  fi("FIKTK", "Kotka"),
+  fi("FIHMN", "Hamina"),
+  fi("FIOUL", "Oulu"),
+  fi("FIPOR", "Pori"),
+  fi("FIRAU", "Rauma"),
+  fi("FITKU", "Turku"),
+  fi("FIVAA", "Vaasa"),
+  fi("FINLI", "Naantali"),
+  fi("FIKAS", "Kaskinen"),
+  fi("FILOV", "Loviisa"),
+  fi("FIUKI", "Uusikaupunki"),
+  fi("FIINK", "Inkoo"),
+  india("INNSA", "Nhava Sheva (JNPA, Navi Mumbai)"),
+  india("INBOM", "Mumbai"),
+  india("INMUN", "Mundra"),
+  india("INPAV", "Pipavav"),
+  india("INHZA", "Hazira"),
+  india("INIXY", "Kandla (Deendayal)"),
+  india("INMAA", "Chennai"),
+  india("INKAT", "Kattupalli"),
+  india("INCOK", "Kochi"),
+  india("INTUT", "Thoothukudi (Tuticorin)"),
+  india("INVTZ", "Visakhapatnam"),
+  india("INCCU", "Kolkata")
+];
+var SUPPORTED_PORTS = Object.fromEntries(PORTS.map((p) => [p.locode, p.name]));
+function normaliseLocode(v) {
+  return v.replace(/\s+/g, "").toUpperCase();
+}
+function portInfo(locode) {
+  const l = normaliseLocode(locode);
+  return PORTS.find((p) => p.locode === l) ?? null;
+}
 var EVIDENCE_SCHEMA = "skjol.arrival-evidence.v1";
-var DIGITRAFFIC_SOURCE = "digitraffic.port-call.v2";
+var DIGITRAFFIC_SOURCE = EVIDENCE_SOURCES.digitraffic.id;
+var VESSELFINDER_SOURCE = EVIDENCE_SOURCES.vesselfinder.id;
 function canonical(e) {
   return JSON.stringify([
     e.schema,
@@ -22330,6 +22388,38 @@ function normaliseDigitrafficVisit(v, retrievedAt, origin) {
     latestEta: v.eta ?? null,
     sourceStatus: String(v.status),
     sourceUpdatedAt: String(v.updateTime)
+  };
+  return { ...base, retrievedAt, digest: evidenceDigest(base) };
+}
+function parseVesselFinderTimestamp(ts) {
+  const m = String(ts).trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\s*UTC|Z)?$/);
+  if (!m)
+    return null;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6])).toISOString();
+}
+function normaliseVesselFinderPortCall(pc, retrievedAt, origin) {
+  if (String(pc.EVENT).toUpperCase() !== "ARRIVAL")
+    return null;
+  const at = parseVesselFinderTimestamp(pc.TIMESTAMP);
+  if (!at)
+    return null;
+  const imo = pc.IMO && /^\d{7}$/.test(String(pc.IMO)) ? String(pc.IMO) : null;
+  const mmsi = pc.MMSI ? String(pc.MMSI) : null;
+  const locode = String(pc.LOCODE).toUpperCase();
+  const base = {
+    schema: EVIDENCE_SCHEMA,
+    source: VESSELFINDER_SOURCE,
+    origin,
+    sourceRecordId: pc.ID ? String(pc.ID) : `${locode}:${imo ?? mmsi ?? "unknown"}:${at}`,
+    vesselImo: imo,
+    vesselMmsi: mmsi,
+    vesselName: null,
+    portLocode: locode,
+    eventType: "VESSEL_ARRIVAL_AT_PORT",
+    eventTimestamp: at,
+    latestEta: null,
+    sourceStatus: "Arrived",
+    sourceUpdatedAt: at
   };
   return { ...base, retrievedAt, digest: evidenceDigest(base) };
 }
@@ -22451,9 +22541,6 @@ var PRODUCTS = {
   }
 };
 var QUOTE_VALIDITY_SEC = 30 * 60;
-function normaliseLocode(v) {
-  return v.replace(/\s+/g, "").toUpperCase();
-}
 function locodeToBytes32(locode) {
   return stringToHex2(normaliseLocode(locode), { size: 32 });
 }
@@ -22496,37 +22583,63 @@ function buildArrivalReport(i) {
 function encodeArrivalReport(i) {
   return encodeAbiParameters3(ARRIVAL_REPORT_ABI, [buildArrivalReport(i)]);
 }
+function resolvePool(cfg, requested) {
+  const allowed = ((cfg.poolAddresses?.length) ? cfg.poolAddresses : [cfg.poolAddress]).map((a) => a.toLowerCase());
+  const pool = (requested ?? cfg.poolAddress).toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(pool) || !allowed.includes(pool))
+    throw new Error(`Pool ${requested} is not configured for this workflow`);
+  return pool;
+}
 var POLICY_ACTIVE = 1;
-function readPolicy(runtime, evm, policyId) {
+var VESSELFINDER_SECRET = "VESSELFINDER_API_KEY";
+function readPolicy(runtime, evm, pool, policyId) {
   const call = evm.callContract(runtime, {
     call: encodeCallMsg({
       from: zeroAddress,
-      to: runtime.config.poolAddress,
+      to: pool,
       data: encodeFunctionData({ abi: POOL_READ_ABI, functionName: "getPolicy", args: [policyId] })
     }),
     blockNumber: LAST_FINALIZED_BLOCK_NUMBER
   }).result();
   return decodeFunctionResult({ abi: POOL_READ_ABI, functionName: "getPolicy", data: bytesToHex3(call.data) });
 }
-function fetchVisits(nodeRuntime, imo, locode, fromIso, clockIso) {
-  const cfg = nodeRuntime.config;
-  let url = `${cfg.digitrafficBaseUrl}/api/port-call/v2/visits?imo=${imo}&portOfCall=${locode}&fromDateTime=${encodeURIComponent(fromIso)}`;
-  if (cfg.replay)
-    url += `&clock=${encodeURIComponent(clockIso)}`;
-  const resp = new ClientCapability2().sendRequest(nodeRuntime, {
-    url,
-    method: "GET",
-    multiHeaders: {
-      "Accept-Encoding": { values: ["gzip"] },
-      "Digitraffic-User": { values: [cfg.digitrafficUser] },
-      Accept: { values: ["application/json"] }
-    },
-    timeout: "8s"
-  }).result();
+function httpGetJson(nodeRuntime, url, headers) {
+  const multiHeaders = Object.fromEntries(Object.entries({ Accept: "application/json", ...headers }).map(([k, v]) => [k, { values: [v] }]));
+  const resp = new ClientCapability2().sendRequest(nodeRuntime, { url, method: "GET", multiHeaders, timeout: "8s" }).result();
   if (resp.statusCode !== 200)
     throw new Error(`Port-call source HTTP ${resp.statusCode}`);
   const raw = resp.body[0] === 31 && resp.body[1] === 139 ? gunzipSync(resp.body) : resp.body;
-  const visits = JSON.parse(new TextDecoder().decode(raw));
+  return JSON.parse(new TextDecoder().decode(raw));
+}
+var vesselFinderDate = (iso) => iso.slice(0, 19).replace("T", " ");
+function fetchArrivals(nodeRuntime, source, imo, locode, fromIso, clockIso, vesselFinderKey) {
+  return source === "vesselfinder" ? fetchVesselFinder(nodeRuntime, imo, locode, fromIso, clockIso, vesselFinderKey) : fetchDigitraffic(nodeRuntime, imo, locode, fromIso, clockIso);
+}
+function fetchVesselFinder(nodeRuntime, imo, locode, fromIso, clockIso, key) {
+  const cfg = nodeRuntime.config;
+  const q = `imo=${imo}&event=arrival&anchorage=0&fromdate=${encodeURIComponent(vesselFinderDate(fromIso))}&todate=${encodeURIComponent(vesselFinderDate(clockIso))}`;
+  const url = cfg.replay ? `${cfg.replayBaseUrl ?? cfg.digitrafficBaseUrl}/vesselfinder/portcalls?${q}&port=${locode}&clock=${encodeURIComponent(clockIso)}` : `${cfg.vesselFinderBaseUrl ?? "https://api.vesselfinder.com"}/portcalls?${q}&userkey=${encodeURIComponent(key)}`;
+  const body = httpGetJson(nodeRuntime, url, {});
+  if (!Array.isArray(body))
+    throw new Error(`VesselFinder error: ${body?.error ?? "unexpected response"}`);
+  const minimal = body.filter((r) => r?.PORTCALL && String(r.PORTCALL.LOCODE).toUpperCase() === locode).map((r) => ({
+    PORTCALL: {
+      ID: r.PORTCALL.ID ?? null,
+      MMSI: r.PORTCALL.MMSI ?? null,
+      IMO: r.PORTCALL.IMO ?? null,
+      LOCODE: r.PORTCALL.LOCODE,
+      EVENT: r.PORTCALL.EVENT,
+      TIMESTAMP: r.PORTCALL.TIMESTAMP
+    },
+    skjolReplay: r.skjolReplay ?? null
+  })).sort((a, b) => a.PORTCALL.TIMESTAMP < b.PORTCALL.TIMESTAMP ? -1 : a.PORTCALL.TIMESTAMP > b.PORTCALL.TIMESTAMP ? 1 : 0);
+  return JSON.stringify({ source: "vesselfinder", rows: minimal });
+}
+function fetchDigitraffic(nodeRuntime, imo, locode, fromIso, clockIso) {
+  const cfg = nodeRuntime.config;
+  const q = `imo=${imo}&portOfCall=${locode}&fromDateTime=${encodeURIComponent(fromIso)}`;
+  const url = cfg.replay ? `${cfg.replayBaseUrl ?? cfg.digitrafficBaseUrl}/digitraffic/visits?${q}&clock=${encodeURIComponent(clockIso)}` : `${cfg.digitrafficBaseUrl}/api/port-call/v2/visits?${q}`;
+  const visits = httpGetJson(nodeRuntime, url, { "Accept-Encoding": "gzip", "Digitraffic-User": cfg.digitrafficUser });
   const minimal = visits.map((v) => ({
     visitId: String(v.visitId),
     vesselId: v.vesselId ?? null,
@@ -22539,9 +22652,16 @@ function fetchVisits(nodeRuntime, imo, locode, fromIso, clockIso) {
     updateTime: v.updateTime,
     skjolReplay: v.skjolReplay ?? null
   })).sort((a, b) => a.visitId < b.visitId ? -1 : 1);
-  return JSON.stringify(minimal);
+  return JSON.stringify({ source: "digitraffic", visits: minimal });
 }
-function evaluate(runtime, policyId, demoClockIso) {
+function toEvidence(json, nowIso) {
+  const parsed = JSON.parse(json);
+  if (parsed.source === "vesselfinder") {
+    return parsed.rows.map((r) => normaliseVesselFinderPortCall({ ...r.PORTCALL, ID: r.PORTCALL.ID ?? undefined, MMSI: r.PORTCALL.MMSI ?? undefined, IMO: r.PORTCALL.IMO ?? undefined }, r.skjolReplay?.retrievedAt ?? nowIso, r.skjolReplay?.label ?? "live")).filter((e) => e !== null);
+  }
+  return parsed.visits.map((v) => normaliseDigitrafficVisit({ ...v, vesselId: v.vesselId ?? undefined, vesselName: v.vesselName ?? undefined, mmsi: v.mmsi ?? undefined, eta: v.eta ?? undefined, ata: v.ata ?? undefined }, v.skjolReplay?.retrievedAt ?? nowIso, v.skjolReplay?.label ?? "live"));
+}
+function evaluate(runtime, pool, policyId, demoClockIso) {
   const cfg = runtime.config;
   if (demoClockIso && !cfg.replay)
     throw new Error("A demo clock is only accepted with the replay configuration");
@@ -22549,7 +22669,7 @@ function evaluate(runtime, policyId, demoClockIso) {
   if (!network)
     throw new Error(`Unknown chain ${cfg.chainName}`);
   const evm = new ClientCapability(network.chainSelector.selector);
-  const p = readPolicy(runtime, evm, policyId);
+  const p = readPolicy(runtime, evm, pool, policyId);
   if (Number(p.status) !== POLICY_ACTIVE) {
     runtime.log(`Policy ${policyId} is not active (status ${p.status}); nothing to do.`);
     return { policyId, status: "NOT_ACTIVE", reasons: [], origin: "-", payoutEligiblePreview: "n/a", reportSubmitted: false, txHash: "" };
@@ -22559,9 +22679,22 @@ function evaluate(runtime, policyId, demoClockIso) {
   const nowIso = demoClockIso ?? runtime.now().toISOString();
   const nowSec = Math.floor(Date.parse(nowIso) / 1000);
   const fromIso = new Date(Number(p.earliestArrival) * 1000).toISOString();
-  const json = runtime.runInNodeMode((nr) => fetchVisits(nr, imo, locode, fromIso, nowIso), consensusIdenticalAggregation())().result();
-  const visits = JSON.parse(json);
-  const records = visits.map((v) => normaliseDigitrafficVisit({ ...v, vesselId: v.vesselId ?? undefined, vesselName: v.vesselName ?? undefined, mmsi: v.mmsi ?? undefined, eta: v.eta ?? undefined, ata: v.ata ?? undefined }, v.skjolReplay?.retrievedAt ?? nowIso, v.skjolReplay?.label ?? "live"));
+  const port = portInfo(locode);
+  if (!port) {
+    runtime.log(`Policy ${policyId}: no arrival source covers ${locode}; nothing submitted.`);
+    return { policyId, status: "SOURCE_UNAVAILABLE", reasons: ["PORT_NOT_COVERED"], origin: "-", payoutEligiblePreview: "n/a", reportSubmitted: false, txHash: "" };
+  }
+  let vesselFinderKey = "";
+  if (port.source === "vesselfinder" && !cfg.replay) {
+    try {
+      vesselFinderKey = runtime.getSecret({ id: VESSELFINDER_SECRET }).result().value;
+    } catch {
+      runtime.log(`Policy ${policyId}: secret ${VESSELFINDER_SECRET} is not available; nothing submitted.`);
+      return { policyId, status: "SOURCE_UNAVAILABLE", reasons: ["SOURCE_CREDENTIALS_MISSING"], origin: "live", payoutEligiblePreview: "n/a", reportSubmitted: false, txHash: "" };
+    }
+  }
+  const json = runtime.runInNodeMode((nr) => fetchArrivals(nr, port.source, imo, locode, fromIso, nowIso, vesselFinderKey), consensusIdenticalAggregation())().result();
+  const records = toEvidence(json, nowIso);
   const origin = records[0]?.origin ?? (cfg.replay ? "replay" : "live");
   const a = assessEvidence({
     vesselImo: imo,
@@ -22576,14 +22709,14 @@ function evaluate(runtime, policyId, demoClockIso) {
   }
   const payload = encodeArrivalReport({
     chainId: BigInt(network.chainId),
-    pool: cfg.poolAddress,
+    pool,
     policyId,
     vesselImo: Number(p.vesselImo),
     destinationLocode: locode,
     evidence: a.evidence
   });
   const report = runtime.report({ encodedPayload: hexToBase64(payload), encoderName: "evm", signingAlgo: "ecdsa", hashingAlgo: "keccak256" }).result();
-  const write = evm.writeReport(runtime, { receiver: cfg.poolAddress, report, gasConfig: { gasLimit: cfg.gasLimit } }).result();
+  const write = evm.writeReport(runtime, { receiver: pool, report, gasConfig: { gasLimit: cfg.gasLimit } }).result();
   const txHash = bytesToHex3(write.txHash || new Uint8Array(32));
   runtime.log(`Report written for ${policyId}: tx ${txHash} (payout preview: ${a.preview?.payoutEligible})`);
   return { policyId, status: a.status, reasons: a.reasons, origin, payoutEligiblePreview: a.preview?.payoutEligible ? "yes" : "no", reportSubmitted: true, txHash };
@@ -22592,9 +22725,12 @@ var onHttp = (runtime, payload) => {
   const input = decodeJson(payload.input);
   if (!input.policyId || !/^0x[0-9a-fA-F]{64}$/.test(input.policyId))
     throw new Error("policyId (bytes32 hex) is required");
-  return evaluate(runtime, input.policyId, input.clock);
+  return evaluate(runtime, resolvePool(runtime.config, input.pool), input.policyId, input.clock);
 };
-var onCron = (runtime) => runtime.config.watchPolicyIds.map((id) => evaluate(runtime, id));
+var onCron = (runtime) => runtime.config.watchPolicyIds.map((entry) => {
+  const [pool, id] = entry.includes(":") ? entry.split(":") : [undefined, entry];
+  return evaluate(runtime, resolvePool(runtime.config, pool), id);
+});
 var initWorkflow = (config) => [
   handler(new HTTPCapability().trigger({}), onHttp),
   handler(new CronCapability().trigger({ schedule: config.schedule }), onCron)

@@ -19,6 +19,8 @@ export interface ClaimFacts {
   delayHours: number | null;
   payoutEligible: boolean | null;
   payoutUsdc: string;
+  /** Settlement token of the policy's pool; defaults to USDC. */
+  currency?: "USDC" | "EURC";
   dataLabel: "live" | "recorded" | "synthetic";
 }
 
@@ -27,7 +29,7 @@ export function rulesExplanation(f: ClaimFacts): string {
   switch (f.assessment) {
     case "ARRIVAL_CONFIRMED":
       return f.payoutEligible
-        ? `${f.vesselName} was recorded arriving at ${f.port} on ${f.recordedArrival}${lbl}, ${f.delayHours?.toFixed(1)} hours after the agreed deadline. That is more than the ${f.thresholdHours}-hour threshold, so the fixed payout of ${f.payoutUsdc} USDC applies. Note: vessel arrival is not the same as your container being unloaded or delivered.`
+        ? `${f.vesselName} was recorded arriving at ${f.port} on ${f.recordedArrival}${lbl}, ${f.delayHours?.toFixed(1)} hours after the agreed deadline. That is more than the ${f.thresholdHours}-hour threshold, so the fixed payout of ${f.payoutUsdc} ${f.currency ?? "USDC"} applies. Note: vessel arrival is not the same as your container being unloaded or delivered.`
         : `${f.vesselName} was recorded arriving at ${f.port} on ${f.recordedArrival}${lbl}. That is within ${f.thresholdHours} hours of the agreed deadline, so this cover closes without a payout. Delays after arrival (unloading, customs, delivery) are not covered.`;
     case "PENDING_NO_ARRIVAL":
       return `No arrival of ${f.vesselName} at ${f.port} has been recorded yet${lbl}.${f.latestEta ? ` The latest reported ETA is ${f.latestEta}; ETAs are for information only and do not change your agreed deadline.` : ""} Your cover stays active and we will check again.`;

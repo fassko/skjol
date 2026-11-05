@@ -5,7 +5,7 @@ import { localRelayAbi } from "./abi/LocalReportRelay";
 import { poolAbi } from "./abi/ShipmentDelayPool";
 import { explainClaim } from "./ai/explain";
 import { publicClient, walletClient } from "./chain";
-import { chainConfig, config } from "./config";
+import { chainConfig, config, poolByAddress } from "./config";
 import { sealJson } from "./crypto";
 import { fetchLiveVisits, replayVisits } from "./digitraffic";
 import { safeOpen } from "./insurance";
@@ -18,7 +18,7 @@ import { encodeArrivalReport } from "../shared/report";
 // observation + evaluation in Arkiv. Who submits the onchain report depends on the runner:
 //   - "local-relay": local Anvil demo only, via LocalReportRelay (NOT Chainlink CRE).
 //   - "cre-simulation" / "cre-deployed": the app only previews; the CRE workflow (cre/…) reads the
-//      policy, fetches Digitraffic, validates and writes the report through the Chainlink forwarder.
+//      policy, fetches the port's arrival source, validates and writes the report through the Chainlink forwarder.
 
 export interface EvaluationResult {
   evaluationId: string;
@@ -44,6 +44,7 @@ export async function evaluatePolicy(
   if (!p) throw new Error("Policy not found in Arkiv (has the sync run since purchase?)");
   const priv = safeOpen(p);
   const c = chainConfig();
+  const pool = (p.pool || c.pool) as Hex;
   const replay = config.evidenceSource() === "replay";
   const clockIsDemo = !!opts.clockIso;
   if (clockIsDemo && !replay) throw new Error("A demo clock can only be used with replay sources");
@@ -52,7 +53,7 @@ export async function evaluatePolicy(
   const nowSec = Math.floor(Date.parse(clockIso) / 1000);
 
   // Arc is authoritative for the locked terms: read the sailing date (earliest arrival) onchain.
-  const onchain = await publicClient().readContract({ address: c.pool, abi: poolAbi, functionName: "getPolicy", args: [policyId] });
+  const onchain = await publicClient().readContract({ address: pool, abi: poolAbi, functionName: "getPolicy", args: [policyId] });
   const terms = {
     vesselImo: String(p.vesselImo),
     destinationLocode: p.portLocode,
@@ -97,7 +98,7 @@ export async function evaluatePolicy(
   if (assessment.status === "ARRIVAL_CONFIRMED" && assessment.evidence) {
     reportPayload = encodeArrivalReport({
       chainId: BigInt(c.id),
-      pool: c.pool,
+      pool,
       policyId,
       vesselImo: p.vesselImo,
       destinationLocode: p.portLocode,
@@ -110,7 +111,7 @@ export async function evaluatePolicy(
       if (c.mode !== "local") throw new Error("local-relay runner is only allowed on the local demo chain");
       const relay = process.env.LOCAL_RELAY_ADDRESS as Hex;
       const w = walletClient("DEPLOYER_PRIVATE_KEY");
-      const hash = await w.writeContract({ address: relay, abi: localRelayAbi, functionName: "report", args: [c.pool, "0x", reportPayload] });
+      const hash = await w.writeContract({ address: relay, abi: localRelayAbi, functionName: "report", args: [pool, "0x", reportPayload] });
       await publicClient().waitForTransactionReceipt({ hash });
       reportTx = hash;
       note = "Report delivered by the LOCAL demo relay (not Chainlink CRE).";
@@ -135,6 +136,7 @@ export async function evaluatePolicy(
     delayHours: assessment.preview ? assessment.preview.delaySec / 3600 : null,
     payoutEligible: assessment.preview?.payoutEligible ?? null,
     payoutUsdc: formatUsdc(product?.payout ?? p.payoutUnits),
+    currency: poolByAddress(pool)?.currency ?? "USDC",
     dataLabel: fetched.origin,
   };
   const explanation = await explainClaim(facts);

@@ -2,9 +2,14 @@
   "schedule": "0 */15 * * * *",
   "chainName": "arc-testnet",
   "poolAddress": "0x45FFfb2133bAD82eC6eBb140db4F3ce2F651B565",
+  "poolAddresses": [
+    "0x45FFfb2133bAD82eC6eBb140db4F3ce2F651B565",
+    "0x5255301D7cB28F29EE6BACB00c72cbCCC480cb86"
+  ],
   "gasLimit": "600000",
   "digitrafficBaseUrl": "http://localhost:3000/api/replay",
   "digitrafficUser": "skjol-hackathon/0.1",
+  "replayBaseUrl": "http://localhost:3000/api/replay",
   "replay": true,
   "maxEvidenceAgeSec": 21600,
   "watchPolicyIds": []
