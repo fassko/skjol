@@ -63,6 +63,29 @@ Demo checklist:
 2. Confirm `/integrations` shows Swarm **prize-ready**.
 3. `POST /api/swarm/roundtrip` or upload on `/cover` and open the Storage strip links.
 
+## Freight agent (MCP)
+
+`/agent` is a phone agent that finds paid port data, pays each call itself (Arc nanopayments or Hedera USDC via x402), and buys arrival-delay cover inside limits set on the server. Test stablecoins only.
+
+The same tools are an MCP server at `POST /api/mcp`. The client brings the model. Skjol still checks the payee allow-list, the spending limits, and the cover approval before anything is signed.
+
+Sign in on `/agent`, open **Wallet & limits**, and choose **Show MCP token**. The token is the sign-in session and expires with it (12 hours).
+
+```json
+{
+  "mcpServers": {
+    "skjol-freight": {
+      "url": "http://localhost:3000/api/mcp",
+      "headers": { "Authorization": "Bearer <token from /agent>" }
+    }
+  }
+}
+```
+
+Tools: `discoverServices`, `callPaidService`, `listShipments`, `getShipment`, `getQuotes`, `buyCover`, `approveCover`, `getSpendingStatus`. Premiums above the approval threshold (default 0.50) go through `approveCover`, which asks the person in the MCP client before it mints a token for `buyCover`.
+
+Details: [`docs/freight-agent-x402.md`](./docs/freight-agent-x402.md).
+
 ## Develop
 
 ```bash

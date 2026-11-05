@@ -78,6 +78,12 @@ sequenceDiagram
   A->>A: ledger (Arkiv) + audit (HCS)
 ```
 
+## MCP
+
+The same actions are available at `POST /api/mcp` for any MCP client (Cursor, Claude, another agent). The client supplies the model. Skjol still enforces the payee allow-list, spending limits, and the cover approval token before anything is signed.
+
+Sign in on `/agent`, open **Wallet & limits**, and choose **Show MCP token**. Put the bearer token on the client. It is the same HMAC session as the sign-in cookie and expires with it (12 hours). Premiums above the approval threshold use `approveCover`, which asks the person in the MCP client before it mints the token.
+
 ## Code map
 
 | Piece | File |
@@ -86,7 +92,8 @@ sequenceDiagram
 | Paid services and Discovery-format catalog | `lib/x402/services.ts`, `app/api/paid/*` |
 | Data behind the services | `lib/vessel-data.ts` |
 | Buyer: limits, x402 client, Gateway deposit, approvals | `lib/agent-wallet.ts` |
-| Agent and tools | `lib/freight-agent.ts`, `app/api/freight-agent/*` |
+| Agent and tools | `lib/freight-agent.ts`, `lib/freight-ops.ts`, `app/api/freight-agent/*` |
+| MCP server (same tools, bearer session) | `lib/freight-mcp.ts`, `app/api/mcp/route.ts` |
 | Hedera signer and HCS audit | `lib/hedera.ts` |
 | Ledger and settings on Arkiv | `lib/store/arkiv.ts` (`skjol.v1.agent-spend`, `skjol.v1.agent-settings`) |
 | Mobile UI | `app/agent/freight-agent.tsx` |
