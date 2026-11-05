@@ -42,8 +42,8 @@ if (deployReceipt.contractAddress && getAddress(deployReceipt.contractAddress) !
 const studioWallet = deployReceipt.from;
 
 // Sanity: this must be the reviewed-and-fixed contract, not an older build.
-await read<bigint>("totalOwed").catch(() => {
-  throw new Error("Pool has no totalOwed(): it is not the fixed contract. Make Studio deploy arc-studio/contracts/ShipmentDelayPool.sol.");
+await read<bigint>("MIN_LIVE_SHARES").catch(() => {
+  throw new Error("Pool has no MIN_LIVE_SHARES(): it is not the fixed contract. Make Studio deploy arc-studio/contracts/ShipmentDelayPool.sol.");
 });
 if (getAddress(await read<Hex>("asset")) !== USDC) throw new Error("Pool asset is not Arc USDC.");
 
