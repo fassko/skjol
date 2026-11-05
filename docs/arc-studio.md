@@ -69,11 +69,11 @@ The fixes above go live only through a new deployment, and that deployment has t
 
 > Update the pool contract to the reviewed and fixed version from our GitHub repo. Then test it, deploy it and hand it over.
 >
-> 1. Replace these three files with the versions at commit `defc1fa4e68f3659eadeb4410760baa7bb8aebbc`:
->    - `contracts/ShipmentDelayPool.sol` ← https://raw.githubusercontent.com/fassko/skjol/defc1fa4e68f3659eadeb4410760baa7bb8aebbc/arc-studio/contracts/ShipmentDelayPool.sol
->    - `contracts/cre/ReceiverTemplate.sol` ← https://raw.githubusercontent.com/fassko/skjol/defc1fa4e68f3659eadeb4410760baa7bb8aebbc/arc-studio/contracts/cre/ReceiverTemplate.sol
->    - `contracts/test/ShipmentDelayPool.t.sol` ← https://raw.githubusercontent.com/fassko/skjol/defc1fa4e68f3659eadeb4410760baa7bb8aebbc/arc-studio/contracts/test/ShipmentDelayPool.t.sol
-> 2. Compile and run the Foundry tests. All 39 must pass. Show me the summary.
+> 1. Replace these three files with the versions at commit `d496dfa965a9abdac47a4e8085d385ef1ab71e0d`:
+>    - `contracts/ShipmentDelayPool.sol` ← https://raw.githubusercontent.com/fassko/skjol/d496dfa965a9abdac47a4e8085d385ef1ab71e0d/arc-studio/contracts/ShipmentDelayPool.sol
+>    - `contracts/cre/ReceiverTemplate.sol` ← https://raw.githubusercontent.com/fassko/skjol/d496dfa965a9abdac47a4e8085d385ef1ab71e0d/arc-studio/contracts/cre/ReceiverTemplate.sol
+>    - `contracts/test/ShipmentDelayPool.t.sol` ← https://raw.githubusercontent.com/fassko/skjol/d496dfa965a9abdac47a4e8085d385ef1ab71e0d/arc-studio/contracts/test/ShipmentDelayPool.t.sol
+> 2. Compile and run the Foundry tests. All 41 must pass. Show me the summary.
 > 3. Review the changes against your earlier security review: exit pricing on `availableCapital()`, `trySafeTransfer` with `owedPayout` / `claimPayout`, reports rejected unless a workflow identity or the simulation operator is set (`ReportIdentityNotConfigured`), and `Ownable2Step`.
 > 4. Deploy `ShipmentDelayPool` to Arc Testnet from the Circle wallet with exactly these constructor arguments:
 >    - `forwarder`: `0x6E9EE680ef59ef64Aa8C7371279c27E496b5eDc1` (CRE simulation forwarder)
