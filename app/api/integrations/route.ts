@@ -1,6 +1,6 @@
 import { handle } from "@/lib/http";
-import { ARC_TESTNET, ARKIV_RABDI, chainConfig, config } from "@/lib/config";
-import { addressLink, poolSnapshot } from "@/lib/chain";
+import { ARC_TESTNET, ARKIV_RABDI, chainConfig, config, hederaConfig, poolConfigs, x402Config } from "@/lib/config";
+import { addressLink, poolSnapshot, txLink } from "@/lib/chain";
 import { SCHEMA_NAMES, writerAddresses } from "@/lib/store/arkiv";
 import { store } from "@/lib/store";
 import { swarmLabel, swarmMode } from "@/lib/swarm";
@@ -9,6 +9,18 @@ import { formatUsdc } from "@/shared/products";
 export const GET = handle(async () => {
   const c = chainConfig();
   const pool = await poolSnapshot().catch((e) => ({ error: (e as Error).message }));
+  const pools = await Promise.all(
+    poolConfigs().map(async (p) => {
+      const snap = await poolSnapshot(p).catch((e) => ({ error: (e as Error).message }));
+      return {
+        currency: p.currency,
+        pool: p.pool,
+        poolUrl: addressLink(p.pool),
+        token: p.token,
+        snapshot: "error" in snap ? snap : { available: formatUsdc(snap.available), reserved: formatUsdc(snap.reserved) },
+      };
+    }),
+  );
   const recentEvents = await store().listChainEvents({ limit: 10 }).catch(() => []);
   const writers = writerAddresses();
   const sim = "simulationOperator" in pool && pool.forwarder?.toLowerCase() === ARC_TESTNET.creSimulationForwarder.toLowerCase();
@@ -19,6 +31,14 @@ export const GET = handle(async () => {
       poolUrl: addressLink(c.pool),
       usdc: c.usdc,
       snapshot: "error" in pool ? pool : { ...pool, available: formatUsdc(pool.available), reserved: formatUsdc(pool.reserved) },
+      pools,
+    },
+    x402: {
+      catalog: "/api/paid/catalog",
+      arc: { network: x402Config.arcNetwork, facilitator: x402Config.gatewayUrl(), payTo: x402Config.arcPayTo() ?? null },
+      hedera: { network: x402Config.hederaNetwork, facilitator: x402Config.hederaFacilitatorUrl(), payTo: x402Config.hederaPayTo() ?? null, token: x402Config.hederaUsdcToken() },
+      auditTopic: hederaConfig.auditTopicId() ?? null,
+      auditTopicUrl: hederaConfig.auditTopicId() ? `${hederaConfig.hashscan}/topic/${hederaConfig.auditTopicId()}` : null,
     },
     arkiv: {
       network: "Rabdi testnet",
@@ -27,8 +47,15 @@ export const GET = handle(async () => {
       schemas: SCHEMA_NAMES,
       writers,
       writerUrls: Object.fromEntries(Object.entries(writers).map(([k, v]) => [k, `${ARKIV_RABDI.explorer}/address/${v}`])),
-      recentEvents: recentEvents.map((e) => ({ kind: e.kind, eventId: e.eventId, key: e.key })),
-      sampleQuery: `publicClient.select().from(defineSchema("skjol.v1.chain-event", {...})).createdBy("${writers.sync}").where(eq("kind", "PolicyPaidOut")).fetch()`,
+      recentEvents: recentEvents.map((e) => ({
+        kind: e.kind,
+        eventId: e.eventId,
+        key: e.key,
+        entityUrl: e.key ? `${ARKIV_RABDI.explorer}/entity/${e.key}` : null,
+        policyId: e.policyId || null,
+        txHash: e.txHash,
+        txUrl: txLink(e.txHash),
+      })),
     },
     swarm: { mode: swarmMode(), label: swarmLabel(swarmMode()), api: config.swarmApiUrl() },
     cre: {
@@ -38,7 +65,9 @@ export const GET = handle(async () => {
       simulationOperator: "error" in pool ? null : pool.simulationOperator,
       productionForwarder: ARC_TESTNET.creProductionForwarder,
       runner: config.evaluationRunner(),
-      deployed: false,
+      /** True only when the pool already points at the production Keystone forwarder. */
+      deployed: !("error" in pool) && !!pool.forwarder && pool.forwarder.toLowerCase() === ARC_TESTNET.creProductionForwarder.toLowerCase(),
+      mode: sim ? "simulation" : "production-forwarder",
     },
     ai: { enabled: config.aiEnabled(), model: config.aiEnabled() ? config.aiModel() : null },
     flags: { replay: config.replayEnabled(), demoProducts: config.demoProductsEnabled(), demoWallet: config.demoCustomerEnabled() },
