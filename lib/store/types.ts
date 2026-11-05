@@ -138,6 +138,37 @@ export interface EvaluationPrivate {
   preview: { arrivalTime: number; delaySec: number; payoutEligible: boolean } | null;
 }
 
+/** One payment decision by the freight agent: a paid API call (x402) or a cover purchase. */
+export type AgentRail = "arc-gateway" | "arc-onchain" | "hedera";
+export interface AgentSpendRecord {
+  key?: string;
+  spendId: string;
+  ownerTag: string;
+  kind: "data" | "cover";
+  rail: AgentRail;
+  network: string; // CAIP-2
+  resource: string; // paid URL, or "pool:<address>" for cover
+  amountUnits: bigint; // 6-decimal stablecoin units
+  asset: string; // "USDC" | "EURC" | HTS token id
+  status: "settled" | "declined" | "failed";
+  reason: string;
+  reference: string; // settlement tx / Gateway transfer id / purchase tx
+  hcs: string; // "<topicId>#<sequence>" when logged to Hedera Consensus Service
+  createdAtSec: number;
+}
+
+/** Per-wallet spending controls for the freight agent. Units: 6-decimal stablecoin units. */
+export interface AgentSettingsRecord {
+  key?: string;
+  ownerTag: string;
+  perCallMax: bigint;
+  dailyCap: bigint;
+  approvalThreshold: bigint;
+  paused: boolean;
+  preferredRail: "arc-gateway" | "hedera";
+  updatedAtSec: number;
+}
+
 export interface AppStore {
   readonly backend: "arkiv" | "memory";
   putShipment(r: ShipmentRecord): Promise<ShipmentRecord>;
@@ -168,5 +199,17 @@ export interface AppStore {
   getSyncCursor(chainId: number, pool: string): Promise<bigint | null>;
   setSyncCursor(chainId: number, pool: string, block: bigint): Promise<void>;
 
-  extendExpiring(withinBlocks: bigint): Promise<number>;
+  /** Active policies whose record expires within `withinSec`. */
+  listActivePoliciesExpiring(withinSec: number): Promise<PolicyRecord[]>;
+  /**
+   * Push a policy and its shipment, quotes, observations, evaluations and chain events out to one
+   * expiry: the active lifetime from now, or a fixed window after `settledAtSec`. Records that
+   * already expire later are left alone.
+   */
+  retainPolicyTrail(trail: { policyId: string; shipmentId: string }, settledAtSec?: number): Promise<number>;
+
+  putAgentSpend(r: AgentSpendRecord): Promise<AgentSpendRecord>;
+  listAgentSpends(filter: { ownerTag: string; sinceSec?: number; limit?: number }): Promise<AgentSpendRecord[]>;
+  getAgentSettings(ownerTag: string): Promise<AgentSettingsRecord | null>;
+  putAgentSettings(r: AgentSettingsRecord): Promise<AgentSettingsRecord>;
 }

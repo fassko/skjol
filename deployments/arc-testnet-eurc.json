@@ -1,0 +1,18 @@
+{
+  "network": "arc-testnet",
+  "chainId": 5042002,
+  "currency": "EURC",
+  "token": "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
+  "forwarder": "0x6E9EE680ef59ef64Aa8C7371279c27E496b5eDc1",
+  "forwarderKind": "MockKeystoneForwarder (CRE simulation)",
+  "deployer": "0x006B92D63938d9B9e3485077e7A72C9a9944364E",
+  "quoteSigner": "0x81986f54507a51BD6633020C58A2C115350b5803",
+  "txs": {
+    "deploy": "0x36a7552b0360221c3a898f53b34988e4c4725190d153d37d727a16b568d69398",
+    "setSimulationOperator": "0x740cc4f5c0623a00dfa0b7aa54b7cf0979cd1460b5f4f677be364b53ef1418f5"
+  },
+  "pool": "0x5255301d7cb28f29ee6bacb00c72cbccc480cb86",
+  "deployBlock": "70832685",
+  "simulationOperator": "0x006B92D63938d9B9e3485077e7A72C9a9944364E",
+  "poolBalance": "0"
+}

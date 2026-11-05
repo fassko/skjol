@@ -8,6 +8,7 @@ import {
   termsHash,
   voyageRefHash,
   type ConfirmedShipment,
+  type Currency,
   type Product,
 } from "./products";
 
@@ -64,6 +65,7 @@ export function buildQuoteMessage(p: {
   product: Product;
   beneficiary: Address;
   nowSec: number;
+  currency?: Currency;
 }): { message: QuoteMessage; terms: string } {
   const deadline = Math.floor(Date.parse(p.shipment.agreedArrivalDeadline) / 1000);
   const departure = Math.floor(Date.parse(p.shipment.departureDate) / 1000);
@@ -73,8 +75,11 @@ export function buildQuoteMessage(p: {
     vesselImo: p.shipment.vesselImo,
     destinationLocode: p.shipment.destinationLocode,
     agreedArrivalDeadline: p.shipment.agreedArrivalDeadline,
+    currency: p.currency,
   });
-  const policyId = derivePolicyId(p.shipmentId, p.product.id, p.beneficiary);
+  // EURC policies get their own id so the same shipment can be covered in either currency.
+  const productKey = p.currency && p.currency !== "USDC" ? `${p.product.id}:${p.currency}` : p.product.id;
+  const policyId = derivePolicyId(p.shipmentId, productKey, p.beneficiary);
   const purchaseCutoff = deadline - p.product.purchaseCutoffLeadSec;
   const message: QuoteMessage = {
     quoteId: keccak256(stringToHex(`skjol:quote:${policyId}:${p.nowSec}`)),

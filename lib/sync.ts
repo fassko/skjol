@@ -2,7 +2,7 @@ import "server-only";
 import { decodeEventLog, hexToString, type Hex, type Log } from "viem";
 import { poolAbi } from "./abi/ShipmentDelayPool";
 import { publicClient } from "./chain";
-import { chainConfig } from "./config";
+import { chainConfig, poolConfigs, type PoolConfig } from "./config";
 import { blindTag, openJson, sealJson } from "./crypto";
 import { store, type AppStore, type ChainEventKind, type PolicyRecord, type PolicyPrivate, type QuotePrivate } from "./store";
 
@@ -87,7 +87,33 @@ export async function applyEvent(s: AppStore, chainId: number, pool: string, e: 
     amountUnits: amount,
     data: json(e.args).slice(0, 4000),
   });
+  // After the event record so it is covered too. Runs on every retry; re-runs resolve to the same expiry.
+  if (e.kind === "PolicyPurchased" || SETTLED_KINDS.includes(e.kind)) await retainTrail(s, e);
   return created ? "written" : "exists";
+}
+
+const SETTLED_KINDS: ChainEventKind[] = ["PolicyPaidOut", "PolicyClosedNoPayout", "PolicyResolvedByReview"];
+
+const shipmentIdOf = (p: PolicyRecord) => openJson<PolicyPrivate>(p.sealed, `policy:${p.policyId}`).shipmentId;
+
+/** Purchase: give the draft quote and shipment the policy's lifetime. Settlement: start the retention window. */
+async function retainTrail(s: AppStore, e: DecodedPoolLog) {
+  const p = await s.getPolicy(e.args.policyId as Hex);
+  if (!p) return;
+  const trail = { policyId: p.policyId, shipmentId: shipmentIdOf(p) };
+  if (e.kind === "PolicyPurchased") {
+    if (p.status === "active") await s.retainPolicyTrail(trail);
+    return;
+  }
+  const block = await publicClient().getBlock({ blockNumber: e.blockNumber });
+  await s.retainPolicyTrail(trail, Number(block.timestamp));
+}
+
+/** Renew the whole record trail of open policies before it expires. */
+async function renewOpenPolicies(s: AppStore) {
+  for (const p of await s.listActivePoliciesExpiring(14 * 86_400)) {
+    await s.retainPolicyTrail({ policyId: p.policyId, shipmentId: shipmentIdOf(p) });
+  }
 }
 
 async function mirrorPurchase(s: AppStore, chainId: number, pool: string, e: DecodedPoolLog) {
@@ -154,22 +180,41 @@ async function mirrorSettlement(s: AppStore, e: DecodedPoolLog) {
   }
 }
 
-export async function runSync(opts: { maxBlocks?: bigint; retries?: number } = {}): Promise<SyncResult> {
+export async function runSync(opts: { maxBlocks?: bigint; retries?: number } = {}): Promise<SyncResult & { pools: (SyncResult & { currency: string; pool: string })[] }> {
   const c = chainConfig();
   const s = store();
-  const client = publicClient();
-  const head = await client.getBlockNumber();
-  const [cursor, lastEvent] = await Promise.all([s.getSyncCursor(c.id, c.pool), s.latestChainEventBlock(c.id)]);
+  const head = await publicClient().getBlockNumber();
+  const pools = [];
+  for (const [i, p] of poolConfigs().entries()) {
+    // Chain events carry no pool field, so "latest mirrored event" is only a safe resume point for
+    // the primary pool (the only one that existed before multi-pool support).
+    pools.push({ currency: p.currency, pool: p.pool, ...(await syncPool(s, c.id, p, head, i === 0, opts)) });
+  }
+  if (pools.every((r) => r.failed.length === 0)) await renewOpenPolicies(s);
+  const primary = pools[0];
+  return {
+    fromBlock: primary?.fromBlock ?? "0",
+    toBlock: primary?.toBlock ?? head.toString(),
+    scanned: pools.reduce((a, r) => a + r.scanned, 0),
+    written: pools.reduce((a, r) => a + r.written, 0),
+    skippedExisting: pools.reduce((a, r) => a + r.skippedExisting, 0),
+    failed: pools.flatMap((r) => r.failed),
+    done: pools.every((r) => r.done),
+    pools,
+  };
+}
+
+async function syncPool(s: AppStore, chainId: number, p: PoolConfig, head: bigint, useEventResume: boolean, opts: { maxBlocks?: bigint; retries?: number }) {
+  const [cursor, lastEvent] = await Promise.all([s.getSyncCursor(chainId, p.pool), useEventResume ? s.latestChainEventBlock(chainId) : Promise.resolve(null)]);
   // Resume from the furthest point known to be fully mirrored (inclusive re-scan is idempotent).
-  const candidates = [c.deployBlock, cursor, lastEvent].filter((x): x is bigint => x !== null);
+  const candidates = [p.deployBlock, cursor, lastEvent].filter((x): x is bigint => x !== null);
   const from = candidates.reduce((a, b) => (a > b ? a : b));
   const to = head - from > (opts.maxBlocks ?? MAX_RANGE) ? from + (opts.maxBlocks ?? MAX_RANGE) : head;
 
-  const logs = await client.getLogs({ address: c.pool, fromBlock: from, toBlock: to });
+  const logs = await publicClient().getLogs({ address: p.pool, fromBlock: from, toBlock: to });
   const decoded = decodePoolLogs(logs as Log[]);
-  const res = await syncDecoded(s, c.id, c.pool, decoded, from, to, to === head, opts.retries ?? 2);
-  if (res.failed.length === 0 && to > from) await s.setSyncCursor(c.id, c.pool, to);
-  if (res.failed.length === 0) await s.extendExpiring(14n * 43_200n); // renew records expiring within ~14 days
+  const res = await syncDecoded(s, chainId, p.pool, decoded, from, to, to === head, opts.retries ?? 2);
+  if (res.failed.length === 0 && to > from) await s.setSyncCursor(chainId, p.pool, to);
   return res;
 }
 
