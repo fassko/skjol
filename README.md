@@ -1,8 +1,30 @@
 # Skjol
 
+**[Open the live app](https://skjol-insurance.vercel.app)** · [How it’s built](https://skjol-insurance.vercel.app/integrations)
+
 Parametric **arrival delay cover** for small importers: pay a fixed premium in test USDC/EURC; if the named vessel’s recorded arrival at the named port is more than 24 hours after the agreed deadline, a fixed payout is sent to the wallet.
 
 Built for ETHGlobal Mumbai on **Arc** (settlement), **Arkiv** (application DB), **Swarm** (encrypted BoL storage), and **Chainlink CRE** (arrival evaluation).
+
+## How it works
+
+1. **Upload a bill of lading** and confirm the vessel, destination port, and arrival deadline.
+2. **Choose cover and pay a fixed premium** in test USDC or EURC. The pool reserves the payout when you buy.
+3. **Evaluate the arrival evidence.** If the recorded arrival is more than 24 hours late, the pool sends the fixed payout to your wallet.
+
+Try [Get cover](https://skjol-insurance.vercel.app/cover) with **Use demo wallet (test funds)**. This is a testnet prototype built for ETHGlobal Mumbai. Chainlink CRE currently runs through local simulation with a test forwarder; production DON deployment is pending. See the [CRE workflow notes](./cre/README.md).
+
+## How it’s built
+
+![Skjol system diagram: funders deposit capital into the Arc pool, importers buy delay cover, Chainlink CRE evaluates arrival evidence, Arkiv stores records, Swarm stores encrypted documents, and the pool pays the importer.](./docs/architecture.svg)
+
+The system diagram from the app’s [How it’s built page](https://skjol-insurance.vercel.app/integrations).
+
+- **Arc:** USDC/EURC pools reserve collateral and settle payouts. Capital funders receive ERC-4626 shares, with share trading through Uniswap V2.
+- **Chainlink CRE:** evaluates port-call evidence from Digitraffic or VesselFinder, with labelled replay data for demos.
+- **Arkiv:** stores shipment, policy, and event records, including sealed document references.
+- **Swarm:** stores AES-256-GCM-encrypted bills of lading; decryption keys stay on the server.
+- **Freight agent:** discovers and pays for port data through Arc nanopayments or Hedera x402, and buys cover within configured limits. Available through the [agent UI](https://skjol-insurance.vercel.app/agent) and MCP.
 
 License: [MIT](./LICENSE).
 
