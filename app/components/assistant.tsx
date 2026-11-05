@@ -3,9 +3,10 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useEffect, useRef, useState } from "react";
-import { api } from "./api";
-import { BuyCard, PurchasedNote, ReviewForm, SAMPLES, type Extraction, type Offer, type UploadResult } from "./cover-steps";
-import { ErrorNote, Spinner } from "./ui";
+import { api, fmtDate } from "./api";
+import { BuyCard, PurchasedNote, ReviewForm, SAMPLES, type Extraction, type Offer, type PurchaseDone, type UploadResult } from "./cover-steps";
+import { Markdown } from "./markdown";
+import { ErrorNote, Spinner, TestFunds } from "./ui";
 
 // Conversational buying agent. Confirmation and purchase are client-side tools: the model can only
 // ASK; the customer completes them in these components.
@@ -13,7 +14,7 @@ export function Assistant() {
   const [input, setInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { messages, sendMessage, addToolOutput, status, error } = useChat({
+  const { messages, sendMessage, setMessages, addToolOutput, status, error, stop, clearError } = useChat({
     transport: new DefaultChatTransport({ api: "/api/agent" }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
@@ -35,7 +36,8 @@ export function Assistant() {
       fd.set("file", file);
       fd.set("synthetic", String(synthetic));
       const r = await api<UploadResult>("/api/shipments", { method: "POST", body: fd });
-      sendMessage({ text: `I uploaded "${file.name}"${synthetic ? " (synthetic sample)" : ""}. Shipment id: ${r.shipmentId}` });
+      const what = synthetic ? `the sample “${file.name}”` : `“${file.name}”`;
+      sendMessage({ text: `I uploaded ${what}. Please read shipment ${r.shipmentId}.` });
     } catch (e) {
       setUploadError((e as Error).message);
     } finally {
@@ -50,13 +52,26 @@ export function Assistant() {
 
   const busy = status === "submitted" || status === "streaming";
 
+  function clearMessages() {
+    if (busy) stop();
+    setMessages([]);
+    clearError();
+    setUploadError(null);
+    setInput("");
+  }
+
   return (
     <div className="card flex flex-col h-[70vh] min-h-[520px]">
-      <div className="px-5 py-3 border-b border-line flex items-center justify-between">
+      <div className="px-5 py-3 border-b border-line flex items-center justify-between gap-3">
         <div>
           <div className="font-display text-lg font-semibold">Cover assistant</div>
           <div className="text-xs text-muted">AI helps you read documents and choose cover. Prices and payouts come from fixed rules.</div>
         </div>
+        {messages.length > 0 && (
+          <button type="button" className="btn btn-ghost !py-1 !px-3 !text-xs shrink-0" onClick={clearMessages}>
+            Clear messages
+          </button>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {messages.length === 0 && (
@@ -75,25 +90,38 @@ export function Assistant() {
           <div key={m.id} className={m.role === "user" ? "flex justify-end" : ""}>
             <div className={m.role === "user" ? "bg-ink text-paper rounded-2xl rounded-br-sm px-4 py-2 max-w-[85%] text-sm" : "space-y-3 text-sm max-w-full"}>
               {m.parts.map((p: any, i: number) => {
-                if (p.type === "text") return <p key={i} className="whitespace-pre-wrap leading-relaxed">{p.text}</p>;
-                if (p.type === "tool-requestConfirmation") return <ConfirmTool key={i} part={p} addToolOutput={addToolOutput} />;
-                if (p.type === "tool-buyPolicy") return <BuyTool key={i} part={p} offers={offers} addToolOutput={addToolOutput} />;
-                if (typeof p.type === "string" && p.type.startsWith("tool-")) {
-                  const name = p.type.slice(5);
-                  return (
-                    <div key={i} className="text-xs text-muted mono">
-                      {p.state === "output-available" ? "✓" : p.state === "output-error" ? "✗" : "…"} {TOOL_LABELS[name] ?? name}
-                      {p.state === "output-error" && <span className="text-bad"> — {p.errorText}</span>}
+                if (p.type === "text")
+                  return m.role === "user" ? (
+                    <p key={i} className="whitespace-pre-wrap leading-relaxed">{p.text}</p>
+                  ) : (
+                    <div key={i} className="rounded-2xl rounded-bl-sm bg-paper px-4 py-3">
+                      <Markdown text={p.text} />
                     </div>
                   );
-                }
+                if (p.type === "tool-requestConfirmation") return <ConfirmTool key={i} part={p} addToolOutput={addToolOutput} />;
+                if (p.type === "tool-getShipment" && p.state === "output-available")
+                  return (
+                    <div key={i} className="space-y-2">
+                      <ToolLine name="getShipment" state={p.state} />
+                      <ShipmentSummary output={p.output} />
+                    </div>
+                  );
+                if (p.type === "tool-getQuotes" && p.state === "output-available")
+                  return (
+                    <div key={i} className="space-y-3">
+                      <ToolLine name="getQuotes" state={p.state} />
+                      <QuoteChoices output={p.output} />
+                    </div>
+                  );
+                if (p.type === "tool-buyPolicy") return <BuyTool key={i} part={p} offers={offers} addToolOutput={addToolOutput} />;
+                if (typeof p.type === "string" && p.type.startsWith("tool-")) return <ToolLine key={i} name={p.type.slice(5)} state={p.state} errorText={p.errorText} />;
                 return null;
               })}
             </div>
           </div>
         ))}
         {busy && <Spinner label="Thinking…" />}
-        <ErrorNote error={error?.message?.includes("503") || error?.message?.includes("unavailable") ? "The AI assistant is not configured here — use the step-by-step flow." : error?.message} />
+        <ErrorNote error={plainError(error?.message)} />
         <ErrorNote error={uploadError} />
         <div ref={end} />
       </div>
@@ -122,11 +150,138 @@ export function Assistant() {
 
 const TOOL_LABELS: Record<string, string> = {
   describeCover: "Looked up cover options",
-  getShipment: "Read your document details",
+  getShipment: "Read your document",
   getQuotes: "Prepared quotes",
   listMyPolicies: "Checked your policies",
   getPolicyStatus: "Checked policy status",
 };
+
+const FIELD_LABELS: Record<string, string> = {
+  vesselName: "Vessel",
+  vesselImo: "IMO",
+  vesselMmsi: "MMSI",
+  voyageRef: "Voyage",
+  originPort: "Loaded at",
+  destinationLocode: "Destination",
+  destinationPort: "Discharge port",
+  departureDate: "Departure",
+  agreedArrivalDeadline: "Agreed arrival deadline",
+};
+
+function plainError(message: string | null | undefined) {
+  if (!message) return null;
+  if (/503|unavailable|not configured/i.test(message)) return "The assistant is not configured here. Use the step-by-step flow.";
+  return message
+    .replace(/\bdepartureDate\b/g, "departure date")
+    .replace(/\bagreedArrivalDeadline\b/g, "agreed arrival deadline")
+    .replace(/\bdestinationLocode\b/g, "destination port")
+    .replace(/\bvesselImo\b/g, "IMO number")
+    .replace(/invalid iso datetime/gi, "is not a valid date");
+}
+
+function ToolLine({ name, state, errorText }: { name: string; state?: string; errorText?: string }) {
+  const mark = state === "output-available" ? "✓" : state === "output-error" ? "✗" : "…";
+  const label = TOOL_LABELS[name] ?? name;
+  return (
+    <div className="text-xs text-muted">
+      {mark} {label}
+      {state === "output-error" && errorText && <span className="text-bad"> — {plainError(errorText)}</span>}
+    </div>
+  );
+}
+
+function fieldValue(key: string, value: string | null | undefined) {
+  if (!value) return "Not in the document";
+  if (key === "departureDate" || key === "agreedArrivalDeadline") return fmtDate(value);
+  return value;
+}
+
+function ShipmentSummary({ output }: { output?: { fields?: Record<string, { value?: string | null; status?: string }>; issues?: { field?: string; message?: string }[] } }) {
+  const fields = output?.fields ?? {};
+  const keys = Object.keys(FIELD_LABELS).filter((k) => fields[k]);
+  if (!keys.length) return null;
+  const issues = (output?.issues ?? []).filter((i) => i.message);
+  return (
+    <div className="rounded-xl border border-line bg-[#fffdf8] px-3 py-2 text-sm space-y-2">
+      <p className="font-semibold">From your document</p>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+        {keys.map((k) => (
+          <div key={k} className="contents">
+            <dt className="text-muted">{FIELD_LABELS[k]}</dt>
+            <dd className={fields[k].value ? "" : "text-muted"}>{fieldValue(k, fields[k].value)}</dd>
+          </div>
+        ))}
+      </dl>
+      {issues.length > 0 && (
+        <ul className="text-ink-2 space-y-1 border-t border-line pt-2">
+          {issues.map((i, n) => (
+            <li key={n}>{i.message}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function lateLabel(hours: number) {
+  return hours >= 1 ? `${hours} h` : `${Math.round(hours * 60)} min`;
+}
+
+function QuoteChoices({ output }: { output?: { offers?: Offer[]; declined?: { reasons: string[] }[] } }) {
+  const offers = output?.offers ?? [];
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [done, setDone] = useState<PurchaseDone | null>(null);
+  const active = offers.find((o) => o.quoteId === activeId);
+
+  if (!offers.length) {
+    const reasons = [...new Set((output?.declined ?? []).flatMap((d) => d.reasons))];
+    if (!reasons.length) return null;
+    return (
+      <div className="rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink-2 space-y-1">
+        <p className="font-semibold text-ink">Nothing to buy for this shipment</p>
+        <ul className="list-disc pl-5 space-y-1">
+          {reasons.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+  if (done) return <PurchasedNote r={done} />;
+  if (active) {
+    return (
+      <div className="card p-4 space-y-3">
+        <button type="button" className="text-xs text-muted underline" onClick={() => setActiveId(null)}>
+          Back to quotes
+        </button>
+        <BuyCard offer={active} onDone={setDone} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {offers.map((o) => (
+        <div key={o.quoteId} className="rounded-xl border border-line bg-[#fffdf8] p-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-display font-semibold">{o.productName}</span>
+              {o.demoOnly && <span className="tag text-warn">Test only</span>}
+              <TestFunds currency={o.currency} />
+            </div>
+            <p className="text-sm text-ink-2">
+              Pays <span className="font-semibold text-ink">{o.payout} {o.currency}</span> if the vessel is more than {lateLabel(o.thresholdHours)} late.
+              Premium <span className="font-semibold text-ink">{o.premium} {o.currency}</span>.
+            </p>
+          </div>
+          <button type="button" className="btn btn-signal shrink-0" onClick={() => setActiveId(o.quoteId)}>
+            Buy
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function ConfirmTool({ part, addToolOutput }: { part: any; addToolOutput: any }) {
   const [extraction, setExtraction] = useState<Extraction | null>(null);

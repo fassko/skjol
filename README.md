@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Skjol
 
-## Getting Started
+Parametric **arrival delay cover** for small importers: pay a fixed premium in test USDC/EURC; if the named vessel’s recorded arrival at the named port is more than 24 hours after the agreed deadline, a fixed payout is sent to the wallet.
 
-First, run the development server:
+Built for ETHGlobal Mumbai on **Arc** (settlement), **Arkiv** (application DB), **Swarm** (encrypted BoL storage), and **Chainlink CRE** (arrival evaluation).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+License: [MIT](./LICENSE).
+
+## Arkiv writers + one query you can run
+
+Rabdi testnet · chain id `7794095` · explorer https://rabdi.explorer.arkiv.network
+
+Writer wallets (from `ARKIV_*_PRIVATE_KEY`):
+
+| Role | Address |
+|------|---------|
+| app | [`0xDc19D52102BEe63eD7eA5cf10B040A1F2B81E75F`](https://rabdi.explorer.arkiv.network/address/0xDc19D52102BEe63eD7eA5cf10B040A1F2B81E75F) |
+| observer | [`0x6da9E22E6833605f5a4b45F6F2bCb2362EDEE4Ee`](https://rabdi.explorer.arkiv.network/address/0x6da9E22E6833605f5a4b45F6F2bCb2362EDEE4Ee) |
+| sync | [`0x93c3deaEDDb1B2E66082a1445bC0f25fb2487f5B`](https://rabdi.explorer.arkiv.network/address/0x93c3deaEDDb1B2E66082a1445bC0f25fb2487f5B) |
+
+Example shipment entity (encrypted BoL on Swarm, metadata on Arkiv):
+
+- https://rabdi.explorer.arkiv.network/entity/0x44a6479dec093210437f7475cea24b6fe2a8f0f28677801066170658b344a18d
+- Swarm ciphertext: https://api.gateway.ethswarm.org/bytes/07c7603b501ecbaa138a31768a2cf4e64ed2d28bcde18f49036b9b094989b0fe
+
+Query that shipment by id (schema `skjol.v1.shipment`, writer = app):
+
+```ts
+import { createPublicClient } from "@arkiv-network/sdk";
+import { rabdi } from "@arkiv-network/sdk/chains";
+import { defineSchema, str } from "@arkiv-network/sdk/schema";
+import { eq } from "@arkiv-network/sdk/query";
+import { http } from "viem";
+
+const Shipments = defineSchema("skjol.v1.shipment", {
+  shipmentId: str().indexed(),
+  status: str().indexed(),
+  dataLabel: str().indexed(),
+});
+
+const client = createPublicClient({
+  chain: rabdi({ accessKey: process.env.ARKIV_ACCESS_KEY! }),
+  transport: http(),
+});
+
+const { entities } = await client
+  .select({ $key: true, $expiresAt: true, status: true, dataLabel: true })
+  .from(Shipments)
+  .createdBy("0xDc19D52102BEe63eD7eA5cf10B040A1F2B81E75F")
+  .where(eq("shipmentId", "shp_08a9642d8966468f922e"))
+  .fetch();
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Prize docs: [`arkiv/schema.md`](./arkiv/schema.md), [`arkiv/friction.md`](./arkiv/friction.md), [`arkiv/reach.md`](./arkiv/reach.md), [`arkiv/why-arkiv.md`](./arkiv/why-arkiv.md), [`arkiv/how-you-use-arkiv.md`](./arkiv/how-you-use-arkiv.md), [`arkiv/swarm.md`](./arkiv/swarm.md).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Swarm (encrypted documents)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+BoLs are AES-256-GCM encrypted in the app, uploaded to Swarm `/bytes` (public gateway stamps postage server-side; own Bee uses `SWARM_POSTAGE_BATCH_ID`), then the content reference is sealed inside the Arkiv shipment entity. See [`arkiv/swarm.md`](./arkiv/swarm.md).
 
-## Learn More
+Demo checklist:
 
-To learn more about Next.js, take a look at the following resources:
+1. Set `SWARM_MODE=gateway` (or `bee` + postage) — not `local-dev` for judges.
+2. Confirm `/integrations` shows Swarm **prize-ready**.
+3. `POST /api/swarm/roundtrip` or upload on `/cover` and open the Storage strip links.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Develop
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm install
+cp .env.example .env.local   # fill secrets
+pnpm dev
+```
 
-## Deploy on Vercel
+## How we used AI
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Cursor / Composer agents helped implement Swarm postage + Bee tags, the Storage strip UI, and the `/arkiv` prize documentation. Product rules, contracts, and Arkiv schemas were directed by the team; AI-generated text was reviewed before submit.

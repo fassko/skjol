@@ -107,7 +107,9 @@ export default function IntegrationsPage() {
           >
             <div className="text-sm space-y-2">
               <p>
-                The workflow in <span className="mono">cre/arrival-evaluator</span> reads the policy terms from Arc, fetches arrival records for the destination port (Digitraffic port calls for Finland, VesselFinder AIS port calls for India), validates them and submits a signed report to the pool. The pool accepts reports only from its configured forwarder.
+                The workflow in <span className="mono">cre/arrival-evaluator</span> reads the policy terms from Arc, fetches arrival records for the destination port (
+                <ExtLink href="https://www.digitraffic.fi/en/marine-traffic/#restjson--api">Digitraffic marine traffic REST/JSON API</ExtLink>
+                {" "}for Finland, VesselFinder AIS port calls for India), validates them and submits a signed report to the pool. The pool accepts reports only from its configured forwarder.
               </p>
               <dl className="grid sm:grid-cols-[180px_1fr] gap-y-1.5">
                 <dt className="text-muted">Configured forwarder</dt><dd className="mono"><Addr explorer={d.arc.chain.explorer} address={d.cre.forwarder} /> <span className="text-xs text-muted">({d.cre.forwarderKind})</span></dd>
@@ -157,9 +159,30 @@ export default function IntegrationsPage() {
             </div>
           </Section>
 
-          <Section title="Swarm — encrypted document storage" aside={d.swarm.mode === "local-dev" ? <State kind="local">Local dev storage — not Swarm</State> : <State kind="live">{d.swarm.mode === "gateway" ? "Swarm public gateway" : "Own Bee node"}</State>}>
+          <Section
+            title="Swarm — encrypted document storage"
+            aside={
+              d.swarm.mode === "local-dev" ? (
+                <State kind="local">Local dev storage — not Swarm</State>
+              ) : d.swarm.prizeReady ? (
+                <State kind="live">{d.swarm.mode === "gateway" ? "Swarm public gateway" : "Own Bee node"} · postage ready</State>
+              ) : (
+                <State kind="needs">Needs SWARM_POSTAGE_BATCH_ID</State>
+              )
+            }
+          >
             <div className="text-sm space-y-3">
-              <p>Documents are encrypted with AES-256-GCM before upload. Swarm only ever holds ciphertext; the Swarm reference is itself encrypted before it is stored in Arkiv.</p>
+              <p>
+                Documents are encrypted with AES-256-GCM before upload. Swarm only ever holds ciphertext; the Swarm reference is sealed inside the Arkiv shipment entity.
+                Uploads use a postage stamp batch and a Bee tag. See <span className="mono">{d.swarm.docs}</span>.
+              </p>
+              {d.swarm.postageNote && <p className="text-xs text-muted">{d.swarm.postageNote}</p>}
+              {!d.swarm.prizeReady && d.swarm.mode === "bee" && (
+                <p className="text-xs text-warn">Set <span className="mono">SWARM_POSTAGE_BATCH_ID</span> for bee-mode uploads.</p>
+              )}
+              {!d.swarm.prizeReady && d.swarm.mode === "local-dev" && (
+                <p className="text-xs text-warn">Set <span className="mono">SWARM_MODE=gateway</span> (or bee + postage) for judge demos.</p>
+              )}
               <button className="btn btn-ghost" onClick={roundtrip} disabled={rtBusy}>
                 {rtBusy ? "Uploading and reading back…" : "Run an upload + read round trip (synthetic sample)"}
               </button>
@@ -171,6 +194,12 @@ export default function IntegrationsPage() {
                     <>
                       <div>Stored via: {rt.storage}</div>
                       <div className="mono break-all">Reference: {rt.reference}</div>
+                      {rt.tagUid != null && (
+                        <div>
+                          Bee tag (upload label): {rt.tagUid}
+                          {rt.tagSynced != null && <> · synced: <strong>{rt.tagSynced ? "yes" : "pending"}</strong></>}
+                        </div>
+                      )}
                       {rt.ciphertextUrl && <div><ExtLink href={rt.ciphertextUrl}>Open ciphertext on Swarm</ExtLink> (unreadable without the key)</div>}
                       <div>Decrypted content matches: <strong>{rt.plaintextMatches ? "yes" : "no"}</strong> · upload {rt.uploadMs} ms · read {rt.readMs} ms</div>
                     </>
@@ -180,7 +209,7 @@ export default function IntegrationsPage() {
             </div>
           </Section>
 
-          <Section title="AI assistant" aside={d.ai.enabled ? <State kind="live">{d.ai.model}</State> : <State kind="needs">Needs AI Gateway key</State>}>
+          <Section title="AI assistant" aside={d.ai.enabled ? <State kind="live">Live</State> : <State kind="needs">Needs AI Gateway key</State>}>
             <p className="text-sm">
               Reads documents (with source quotes and page numbers), explains cover and writes claim summaries. It never prices, decides eligibility or computes payouts — those are fixed rules in code and in the contract.
               {!d.ai.enabled && " Without a key, documents are read by deterministic offline rules and explanations use fixed templates."}

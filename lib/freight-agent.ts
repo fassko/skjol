@@ -4,7 +4,7 @@ import { z } from "zod";
 import { checkSpend, payForResource, recordSpend, requireAgentWallet, spendingStatus, verifyApproval } from "./agent-wallet";
 import { config } from "./config";
 import { issueQuotes, loadOwnedShipment } from "./insurance";
-import { loadOwnedQuote, purchaseWithDemoWallet } from "./purchase";
+import { loadOwnedQuote, purchaseWithAgentFunds } from "./purchase";
 import type { Session } from "./session";
 import { runSync } from "./sync";
 import { listMyShipments } from "./views";
@@ -209,7 +209,7 @@ export function buildFreightAgent(session: Session) {
             };
           }
           try {
-            const r = await purchaseWithDemoWallet(quoteId, session);
+            const r = await purchaseWithAgentFunds(quoteId, session);
             const rec = await recordSpend(session, { ...base, status: "settled", reason: "", reference: r.purchaseTx }, "cover_bought");
             await runSync().catch(() => null);
             return { purchased: true, policyId: r.policyId, premium: formatUsdc(premium), currency: pool.currency, txUrl: r.purchaseTxUrl, auditUrl: rec.hcsUrl, policyUrl: `/policies/${r.policyId}` };

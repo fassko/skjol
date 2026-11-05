@@ -110,7 +110,7 @@ export interface ChainEventRecord {
 export interface ShipmentPrivate {
   owner: string;
   fileName: string;
-  document: { mode: string; reference: string; sha256: string; size: number };
+  document: { mode: string; reference: string; sha256: string; size: number; tagUid?: number | null };
   extraction: unknown;
   confirmed: unknown | null;
 }

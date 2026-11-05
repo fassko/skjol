@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, fmtDate, short } from "../../components/api";
 import { BridgeEurc } from "../../components/bridge-eurc";
 import { CodeBlock } from "../../components/code-block";
-import { DataLabel, ErrorNote, ExtLink, Section, Spinner, StatusPill, TestFunds } from "../../components/ui";
+import { DataLabel, ErrorNote, ExtLink, Section, Spinner, StatusPill, StorageStrip, TestFunds } from "../../components/ui";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Detail = any;
@@ -99,6 +99,16 @@ export function PolicyDetail({ policyId }: { policyId: string }) {
           )}
         </Section>
       </div>
+
+      {d.documentStorage && (
+        <Section title="Document storage">
+          <StorageStrip
+            arkivKey={d.documentStorage.arkivKey}
+            arkivUrl={d.documentStorage.arkivUrl}
+            storage={d.documentStorage.storage}
+          />
+        </Section>
+      )}
 
       {d.arkiv && <ArkivPanel a={d.arkiv} chain={d.chain} events={d.events} />}
 

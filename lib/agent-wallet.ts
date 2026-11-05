@@ -30,10 +30,10 @@ export interface AgentLimits {
 
 export const ownerTagOf = (session: Session) => blindTag("owner", session.address);
 
-/** The agent spends from the demo wallet's TEST key, so it is only available to that session. */
-export function requireAgentWallet(session: Session) {
+/** The agent signs with the server-held TEST key. Any logged-in session can use it; spend is attributed to that session. */
+export function requireAgentWallet(_session: Session) {
   const acct = demoCustomer();
-  if (!acct || !session.demo || session.address !== acct.address) throw new HttpError(403, "The freight agent runs with the demo wallet (test funds only). Sign in with the demo wallet.");
+  if (!acct) throw new HttpError(403, "The freight agent needs the demo wallet key configured (test funds only).");
   return acct;
 }
 

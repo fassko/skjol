@@ -1,6 +1,8 @@
 import { handle } from "@/lib/http";
 import { createShipment } from "@/lib/insurance";
 import { HttpError, requireSession } from "@/lib/session";
+import { ARKIV_EXPLORER } from "@/lib/store/arkiv";
+import { storageSummary } from "@/lib/swarm";
 import { listMyShipments } from "@/lib/views";
 
 export const maxDuration = 60;
@@ -15,5 +17,12 @@ export const POST = handle(async (req: Request) => {
   const synthetic = form.get("synthetic") === "true";
   const bytes = new Uint8Array(await file.arrayBuffer());
   const r = await createShipment({ owner: session.address, fileName: file.name, bytes, dataLabel: synthetic ? "synthetic" : "customer" });
-  return { shipmentId: r.shipmentId, extraction: r.extraction, storage: { mode: r.document.mode, reference: r.document.reference, size: r.document.size }, arkivKey: r.arkivKey };
+  const storage = storageSummary(r.document);
+  return {
+    shipmentId: r.shipmentId,
+    extraction: r.extraction,
+    storage,
+    arkivKey: r.arkivKey,
+    arkivUrl: r.arkivKey ? `${ARKIV_EXPLORER}/entity/${r.arkivKey}` : null,
+  };
 });

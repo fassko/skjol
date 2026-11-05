@@ -106,6 +106,54 @@ body {
 
 .mono { font-family: var(--font-plex-mono), ui-monospace, monospace; }
 
+.md {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  line-height: 1.55;
+}
+.md p { margin: 0; }
+.md h1,
+.md h2,
+.md h3 {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 0.65rem 0 0.1rem;
+}
+.md h1 { font-size: 1.25rem; }
+.md h2 { font-size: 1.125rem; }
+.md h3 { font-size: 1.05rem; }
+.md hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0.35rem 0;
+}
+.md ul,
+.md ol {
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.md ul { list-style: disc; }
+.md ol { list-style: decimal; }
+.md strong { font-weight: 650; }
+.md em { font-style: italic; }
+.md code {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--paper-2);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+.md a {
+  color: var(--sea);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .pulse { animation: pulse-dot 1.4s ease-in-out infinite; }
 

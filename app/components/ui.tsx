@@ -66,3 +66,46 @@ export function ExtLink({ href, children }: { href: string | null | undefined; c
     </a>
   );
 }
+
+/** Judge-visible Arkiv ↔ Swarm strip: entity link + ciphertext URL (unreadable without the key). */
+export function StorageStrip(p: {
+  arkivKey?: string | null;
+  arkivUrl?: string | null;
+  storage: {
+    mode: string;
+    reference?: string;
+    size?: number;
+    tagUid?: number | null;
+    ciphertextUrl?: string | null;
+    label?: string;
+  };
+}) {
+  const swarmName =
+    p.storage.mode === "local-dev" ? "Local dev storage (not Swarm)" : p.storage.label ?? (p.storage.mode === "bee" ? "Own Bee node" : "Swarm gateway");
+  return (
+    <div className="rounded-lg bg-paper-2 p-3 text-xs space-y-1.5">
+      <div className="font-semibold text-ink">Storage — Arkiv + Swarm</div>
+      <div>
+        Via: <span className="mono">{swarmName}</span>
+        {p.storage.size != null && <span className="text-muted"> · {p.storage.size} bytes</span>}
+        {p.storage.tagUid != null && <span className="text-muted"> · Bee tag {p.storage.tagUid}</span>}
+      </div>
+      {p.arkivKey && (
+        <div>
+          Arkiv entity:{" "}
+          {p.arkivUrl ? <ExtLink href={p.arkivUrl}>{p.arkivKey.slice(0, 18)}…</ExtLink> : <span className="mono break-all">{p.arkivKey}</span>}
+        </div>
+      )}
+      {p.storage.reference && (
+        <div className="mono break-all text-muted">Swarm ref: {p.storage.reference}</div>
+      )}
+      {p.storage.ciphertextUrl && (
+        <div>
+          <ExtLink href={p.storage.ciphertextUrl}>Open ciphertext on Swarm</ExtLink>
+          <span className="text-muted"> (unreadable without the key)</span>
+        </div>
+      )}
+      <p className="text-muted">Ciphertext only on Swarm; the reference is sealed in the Arkiv entity. The decryption key never leaves the server.</p>
+    </div>
+  );
+}

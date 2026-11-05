@@ -14,6 +14,9 @@ describe("document extraction (offline rules)", () => {
     expect(parseDocDate("2 December 2026 08:00 UTC")).toBe("2026-12-02T08:00:00.000Z");
     expect(parseDocDate("02.12.2026 08:00 UTC")).toBe("2026-12-02T08:00:00.000Z");
     expect(parseDocDate("10 December 2026, 12:00 UTC")).toBe("2026-12-10T12:00:00.000Z");
+    expect(parseDocDate("December 2, 2026, 08:00 UTC")).toBe("2026-12-02T08:00:00.000Z");
+    expect(parseDocDate("2026-12-02T08:00Z")).toBe("2026-12-02T08:00:00.000Z");
+    expect(parseDocDate("2026-12-02T08:00:00.000+00:00")).toBe("2026-12-02T08:00:00.000Z");
   });
 
   it("extracts a bill of lading with excerpts and page references", async () => {
@@ -50,6 +53,7 @@ describe("document extraction (offline rules)", () => {
     expect(x.fields.vesselImo.value).toBe("9700055");
     expect(x.fields.voyageRef.value).toBe("IH-118W");
     expect(x.fields.destinationLocode.value).toBe("INNSA");
+    expect(x.fields.departureDate.value).toBe("2026-12-02T08:00:00.000Z");
     expect(x.fields.agreedArrivalDeadline.value).toBe("2026-12-10T12:00:00.000Z");
     expect(x.fields.eta.value).toBe("2026-12-09T22:00:00.000Z");
     expect(x.issues.filter((i) => i.field === "destinationLocode")).toEqual([]);

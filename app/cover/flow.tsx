@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Assistant } from "../components/assistant";
 import { BuyCard, ConnectStep, PurchasedNote, QuoteCards, ReviewForm, UploadStep, type Offer, type PurchaseDone, type UploadResult } from "../components/cover-steps";
 import { useSession } from "../components/session";
-import { DataLabel, Section, Spinner } from "../components/ui";
+import { DataLabel, Section, Spinner, StorageStrip } from "../components/ui";
 
 const STEPS = ["Connect", "Upload", "Review", "Quote", "Buy"];
 
@@ -79,7 +79,10 @@ export function CoverFlow({ aiEnabled }: { aiEnabled: boolean }) {
             </Section>
           ) : step === 2 && upload ? (
             <Section title="3. Check the details" aside={<span className="text-xs text-muted">Stored encrypted · {upload.storage.mode === "local-dev" ? "local dev storage" : "Swarm"}</span>}>
-              <ReviewForm shipmentId={upload.shipmentId} extraction={upload.extraction} onConfirmed={() => setConfirmed(true)} />
+              <div className="space-y-4">
+                <StorageStrip arkivKey={upload.arkivKey} arkivUrl={upload.arkivUrl} storage={upload.storage} />
+                <ReviewForm shipmentId={upload.shipmentId} extraction={upload.extraction} onConfirmed={() => setConfirmed(true)} />
+              </div>
             </Section>
           ) : step === 3 && upload ? (
             <Section title="4. Choose your cover">

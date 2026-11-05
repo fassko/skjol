@@ -30,7 +30,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </main>
           <footer className="border-t border-line text-xs text-muted py-6 px-6 text-center space-y-1">
             <p>
-              Vessel arrival data: Fintraffic / digitraffic.fi, licensed CC BY 4.0 (Finland); VesselFinder AIS port calls (India). Synthetic and recorded demo data is always labelled.
+              Vessel arrival data: Fintraffic{" "}
+              <a
+                href="https://www.digitraffic.fi/en/marine-traffic/#restjson--api"
+                className="underline decoration-line underline-offset-2 hover:decoration-ink"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Digitraffic marine traffic REST/JSON API
+              </a>
+              , licensed CC BY 4.0 (Finland); VesselFinder AIS port calls (India). Synthetic and recorded demo data is always labelled.
             </p>
             <p>Skjol is a hackathon MVP. Vessel arrival is not container unloading or delivery.</p>
           </footer>
