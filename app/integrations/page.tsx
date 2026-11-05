@@ -17,7 +17,18 @@ function Addr({ explorer, address }: { explorer: string | null | undefined; addr
 }
 
 function ArchitectureDiagram() {
-  const stroke = "#7a7368";
+  const ink = "#6b7a86";
+  const arc = "#1B3158";
+  const uni = "#FF007A";
+  const link = "#0847F7";
+  const arkiv = "#181EA9";
+  const swarm = "#C47A00";
+  const pay = "#2b7a3d";
+  const arrow = (id: string, color: string) => (
+    <marker id={id} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill={color} />
+    </marker>
+  );
   return (
     <Section title="System diagram" aside={<State kind="live">End-to-end flow</State>}>
       <p className="text-sm text-ink-2 mb-4 max-w-3xl">
@@ -27,77 +38,175 @@ function ArchitectureDiagram() {
       <div className="overflow-x-auto -mx-1 px-1">
         <svg viewBox="0 0 920 360" className="w-full min-w-[640px] h-auto text-ink" role="img" aria-label="Skjol architecture diagram">
           <defs>
-            <marker id="skjol-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-              <path d="M0 0 L10 5 L0 10 z" fill={stroke} />
-            </marker>
+            {arrow("arrow-ink", ink)}
+            {arrow("arrow-uni", uni)}
+            {arrow("arrow-link", link)}
+            {arrow("arrow-arkiv", arkiv)}
+            {arrow("arrow-swarm", swarm)}
+            {arrow("arrow-pay", pay)}
           </defs>
 
-          {/* Boxes */}
+          {/* People stay on chart paper. Each project box uses that project's main brand color. */}
           <rect x="24" y="28" width="148" height="56" rx="10" fill="#f3f0ea" stroke="#d9d2c5" strokeWidth="1.5" />
           <text x="98" y="52" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="600">Capital funder</text>
-          <text x="98" y="70" textAnchor="middle" fill={stroke} fontSize="11">deposits USDC / EURC</text>
+          <text x="98" y="70" textAnchor="middle" fill={ink} fontSize="11">deposits USDC / EURC</text>
 
-          <rect x="250" y="20" width="200" height="40" rx="10" fill="#f3f0ea" stroke="#c45c26" strokeWidth="1.5" />
+          <rect x="250" y="20" width="200" height="40" rx="10" fill="#FFE6F1" stroke={uni} strokeWidth="2" />
           <text x="350" y="45" textAnchor="middle" fill="currentColor" fontSize="12" fontWeight="600">Uniswap V2 · share ↔ token</text>
 
-          <rect x="250" y="100" width="200" height="88" rx="12" fill="#e6f0f0" stroke="#1f6f6a" strokeWidth="2" />
+          <rect x="250" y="100" width="200" height="88" rx="12" fill="#E6EDF5" stroke={arc} strokeWidth="2" />
           <text x="350" y="130" textAnchor="middle" fill="currentColor" fontSize="14" fontWeight="700">ShipmentDelayPool</text>
-          <text x="350" y="150" textAnchor="middle" fill={stroke} fontSize="11">shared collateral · ERC-4626 shares</text>
-          <text x="350" y="168" textAnchor="middle" fill={stroke} fontSize="11">reserve payout · settle claims</text>
+          <text x="350" y="150" textAnchor="middle" fill={arc} fontSize="11">on Arc · ERC-4626 shares</text>
+          <text x="350" y="168" textAnchor="middle" fill={arc} fontSize="11">reserve payout · settle claims</text>
 
           <rect x="24" y="160" width="148" height="56" rx="10" fill="#f3f0ea" stroke="#d9d2c5" strokeWidth="1.5" />
           <text x="98" y="184" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="600">Importer</text>
-          <text x="98" y="202" textAnchor="middle" fill={stroke} fontSize="11">buys delay cover</text>
+          <text x="98" y="202" textAnchor="middle" fill={ink} fontSize="11">buys delay cover</text>
 
-          <rect x="540" y="100" width="160" height="88" rx="12" fill="#f3f0ea" stroke="#d9d2c5" strokeWidth="1.5" />
+          <rect x="540" y="100" width="160" height="88" rx="12" fill="#DCEBFF" stroke={link} strokeWidth="2" />
           <text x="620" y="130" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="600">Chainlink CRE</text>
-          <text x="620" y="150" textAnchor="middle" fill={stroke} fontSize="11">port-call evidence</text>
-          <text x="620" y="168" textAnchor="middle" fill={stroke} fontSize="11">Digitraffic / VesselFinder</text>
+          <text x="620" y="150" textAnchor="middle" fill={link} fontSize="11">port-call evidence</text>
+          <text x="620" y="168" textAnchor="middle" fill={link} fontSize="11">Digitraffic / VesselFinder</text>
 
-          <rect x="760" y="28" width="136" height="56" rx="10" fill="#f3f0ea" stroke="#d9d2c5" strokeWidth="1.5" />
+          <rect x="760" y="28" width="136" height="56" rx="10" fill="#E6E7F8" stroke={arkiv} strokeWidth="2" />
           <text x="828" y="52" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="600">Arkiv</text>
-          <text x="828" y="70" textAnchor="middle" fill={stroke} fontSize="11">policies · events</text>
+          <text x="828" y="70" textAnchor="middle" fill={arkiv} fontSize="11">policies · events</text>
 
-          <rect x="760" y="160" width="136" height="56" rx="10" fill="#f3f0ea" stroke="#d9d2c5" strokeWidth="1.5" />
+          <rect x="760" y="160" width="136" height="56" rx="10" fill="#FFF1D6" stroke={swarm} strokeWidth="2" />
           <text x="828" y="184" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="600">Swarm</text>
-          <text x="828" y="202" textAnchor="middle" fill={stroke} fontSize="11">encrypted BoL</text>
+          <text x="828" y="202" textAnchor="middle" fill={swarm} fontSize="11">encrypted BoL</text>
 
-          <rect x="250" y="260" width="200" height="44" rx="10" fill="#f3f0ea" stroke="#2f7d4a" strokeWidth="1.5" />
+          <rect x="250" y="260" width="200" height="44" rx="10" fill="#E7F4EB" stroke={pay} strokeWidth="1.5" />
           <text x="350" y="287" textAnchor="middle" fill="currentColor" fontSize="12" fontWeight="600">Fixed payout → wallet</text>
 
-          {/* Orthogonal arrows — ends sit on box edges */}
-          {/* funder → pool (mint shares) */}
-          <path d="M172 56 H210 V144 H250" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
-          {/* importer → pool (premium) */}
-          <path d="M172 188 H210 V160 H250" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
-          {/* pool ↔ uniswap */}
-          <path d="M350 100 V60" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
-          {/* pool → CRE (report) */}
-          <path d="M450 144 H540" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
-          {/* CRE → Arkiv */}
-          <path d="M620 100 V56 H760" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
-          {/* importer → Swarm (BoL) */}
-          <path d="M172 204 H200 V230 H740 V188 H760" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
-          {/* pool → payout */}
-          <path d="M350 188 V260" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
-          {/* Swarm → Arkiv (reference) */}
-          <path d="M828 160 V84" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
+          {/* Orthogonal arrows — ends sit on box edges, colored like the project they reach. */}
+          <path d="M172 56 H210 V144 H250" fill="none" stroke={ink} strokeWidth="1.5" markerEnd="url(#arrow-ink)" />
+          <path d="M172 188 H210 V160 H250" fill="none" stroke={ink} strokeWidth="1.5" markerEnd="url(#arrow-ink)" />
+          <path d="M350 100 V60" fill="none" stroke={uni} strokeWidth="1.5" markerEnd="url(#arrow-uni)" />
+          <path d="M450 144 H540" fill="none" stroke={link} strokeWidth="1.5" markerEnd="url(#arrow-link)" />
+          <path d="M620 100 V56 H760" fill="none" stroke={arkiv} strokeWidth="1.5" markerEnd="url(#arrow-arkiv)" />
+          <path d="M172 204 H200 V230 H740 V188 H760" fill="none" stroke={swarm} strokeWidth="1.5" markerEnd="url(#arrow-swarm)" />
+          <path d="M350 188 V260" fill="none" stroke={pay} strokeWidth="1.5" markerEnd="url(#arrow-pay)" />
+          <path d="M828 160 V84" fill="none" stroke={arkiv} strokeWidth="1.5" markerEnd="url(#arrow-arkiv)" />
 
-          <text x="186" y="118" fill={stroke} fontSize="10">mint shares</text>
-          <text x="186" y="176" fill={stroke} fontSize="10">premium</text>
-          <text x="478" y="136" fill={stroke} fontSize="10">report</text>
-          <text x="360" y="90" fill={stroke} fontSize="10">trade</text>
-          <text x="360" y="248" fill={stroke} fontSize="10">claim</text>
-          <text x="420" y="246" fill={stroke} fontSize="10">BoL → Swarm</text>
-          <text x="838" y="124" fill={stroke} fontSize="10">ref</text>
+          <text x="186" y="118" fill={ink} fontSize="10">mint shares</text>
+          <text x="186" y="176" fill={ink} fontSize="10">premium</text>
+          <text x="478" y="136" fill={link} fontSize="10">report</text>
+          <text x="360" y="90" fill={uni} fontSize="10">Uniswap</text>
+          <text x="360" y="248" fill={pay} fontSize="10">claim</text>
+          <text x="420" y="246" fill={swarm} fontSize="10">BoL → Swarm</text>
+          <text x="838" y="124" fill={arkiv} fontSize="10">ref</text>
         </svg>
       </div>
       <p className="text-xs text-muted mt-3">
-        Open the interactive capital desk to fund, redeem or trade shares →{" "}
+        Open the interactive capital desk to fund, redeem or trade shares on Uniswap →{" "}
         <Link href="/capital" className="underline">
           /capital
         </Link>
       </p>
+    </Section>
+  );
+}
+
+const MCP_TOOLS = [
+  ["discoverServices", "Find paid port-data services, including this deployment’s x402 catalog."],
+  ["callPaidService", "Pay for one call. The server refuses payees outside the allow-list and amounts over the limits."],
+  ["listShipments", "Shipments already uploaded for this sign-in."],
+  ["getShipment", "Vessel, port, and deadline confirmed on a shipment."],
+  ["getQuotes", "Signed cover quotes. The shipment must already be confirmed in the app."],
+  ["approveCover", "Asks the person in the MCP client when the premium is above the approval threshold (default 0.50)."],
+  ["buyCover", "Buys that quote. A premium over the threshold needs the token approveCover just minted."],
+  ["getSpendingStatus", "Limits, spend in the last 24 hours, and what remains."],
+] as const;
+
+function McpSection() {
+  const [origin, setOrigin] = useState("");
+  const [copied, setCopied] = useState<"http" | "stdio" | null>(null);
+  useEffect(() => setOrigin(window.location.origin), []);
+  const url = origin ? `${origin}/api/mcp` : "/api/mcp";
+  const httpConfig = `{
+  "mcpServers": {
+    "skjol-freight": {
+      "url": "${url}",
+      "headers": { "Authorization": "Bearer <token from /agent>" }
+    }
+  }
+}`;
+  const stdioConfig = `{
+  "mcpServers": {
+    "skjol-freight": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "${url}", "--header", "Authorization: Bearer <token from /agent>"]
+    }
+  }
+}`;
+
+  function copy(which: "http" | "stdio", text: string) {
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(which);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  }
+
+  return (
+    <Section title="MCP — connect another agent" aside={<State kind="live">Live on this deployment</State>}>
+      <div className="text-sm space-y-3">
+        <p>
+          Model Context Protocol (MCP) is how Cursor, Claude, or another agent calls the freight tools without the phone chat.
+          The client brings the model. This server answers at <span className="mono">{url}</span> over Streamable HTTP. Skjol still
+          checks the payee allow-list, the spending limits, and the cover approval before anything is signed. Test stablecoins only.
+        </p>
+        <div>
+          <div className="text-xs font-semibold text-muted uppercase mb-1">How to connect</div>
+          <ol className="list-decimal pl-5 space-y-1">
+            <li>
+              Sign in on the{" "}
+              <Link href="/agent" className="underline">
+                Freight agent
+              </Link>
+              .
+            </li>
+            <li>
+              Open <strong>Wallet & limits</strong>.
+            </li>
+            <li>
+              Choose <strong>Show MCP token</strong>. The token is that sign-in and expires with it (12 hours). You can copy a
+              ready-made config from that panel, or paste one of the blocks below and replace the token.
+            </li>
+            <li>
+              Add the server in the client. Cursor, Claude, and any client that speaks Streamable HTTP use the URL plus{" "}
+              <span className="mono">Authorization: Bearer</span>. A client that only speaks stdio proxies through{" "}
+              <span className="mono">mcp-remote</span>.
+            </li>
+          </ol>
+        </div>
+        <div className="space-y-1">
+          <div className="text-xs text-muted">Streamable HTTP</div>
+          <pre className="text-[11px] leading-snug overflow-x-auto rounded-lg bg-paper-2 p-3 mono">{httpConfig}</pre>
+          <button type="button" className="btn btn-ghost !py-1 !text-xs" onClick={() => copy("http", httpConfig)}>
+            {copied === "http" ? "Copied" : "Copy HTTP config"}
+          </button>
+        </div>
+        <div className="space-y-1">
+          <div className="text-xs text-muted">stdio-only client</div>
+          <pre className="text-[11px] leading-snug overflow-x-auto rounded-lg bg-paper-2 p-3 mono">{stdioConfig}</pre>
+          <button type="button" className="btn btn-ghost !py-1 !text-xs" onClick={() => copy("stdio", stdioConfig)}>
+            {copied === "stdio" ? "Copied" : "Copy stdio config"}
+          </button>
+        </div>
+        <dl className="grid sm:grid-cols-[180px_1fr] gap-y-1.5">
+          {MCP_TOOLS.map(([name, about]) => (
+            <div key={name} className="contents">
+              <dt className="text-muted mono">{name}</dt>
+              <dd>{about}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="text-xs text-muted">
+          A call without a bearer token gets 401. The token is the same HMAC session as the sign-in cookie, so the client can
+          call this server on its own. Premiums at or under the threshold buy without a second prompt.
+        </p>
+      </div>
     </Section>
   );
 }
@@ -211,7 +320,8 @@ export default function IntegrationsPage() {
         <h1 className="font-display text-3xl font-semibold">How it’s built</h1>
         <p className="text-ink-2 mt-1 max-w-3xl">
           Live status of every integration, read from this deployment. Capital is pooled across policies; funders hold ERC-4626
-          shares that redeem for free collateral or trade on Uniswap V2.
+          shares that redeem for free collateral or trade on Uniswap V2. The freight tools are also an MCP server — any agent
+          connects with a token from the agent page.
         </p>
       </div>
       <ErrorNote error={error} />
@@ -291,10 +401,12 @@ export default function IntegrationsPage() {
               </dl>
               <p className="text-xs text-muted mt-3">
                 The Freight agent on /agent discovers these services and pays for them per call, inside spending limits enforced
-                on the server.
+                on the server. The same tools are the MCP server below.
               </p>
             </Section>
           )}
+
+          <McpSection />
 
           <Section
             title="Chainlink CRE — arrival evaluation workflow"

@@ -63,9 +63,11 @@ export default function CapitalPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2 max-w-2xl">
-        <p className="tag text-sea">Capital pool</p>
-        <h1 className="font-display text-3xl sm:text-4xl font-semibold">Fund the shared pool. Trade the shares.</h1>
+      <div className="space-y-2">
+        <div className="space-y-2 max-w-2xl">
+          <p className="tag text-sea">Capital pool</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold">Fund the shared pool. Trade the shares.</h1>
+        </div>
         <p className="text-ink-2">
           Premiums and operator capital sit in one pot that backs every policy. Deposit{" "}
           <TestFunds currency={cfg.symbol} /> to mint transferable <strong>{cfg.shareSymbol}</strong> shares.
@@ -99,7 +101,7 @@ export default function CapitalPage() {
           [
             ["fund", "Fund"],
             ["redeem", "Redeem"],
-            ["trade", "Trade"],
+            ["trade", "Trade · Uniswap"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -446,7 +448,7 @@ function TradePanel({ cfg }: { cfg: (typeof POOLS)[PoolPick] }) {
   }
 
   return (
-    <Section title={`Swap ${cfg.shareSymbol} ↔ ${cfg.symbol}`}>
+    <Section title={`Swap ${cfg.shareSymbol} ↔ ${cfg.symbol} on Uniswap V2`}>
       {!w.isConnected ? (
         <p className="text-sm text-ink-2">Connect a wallet to trade pool shares on Uniswap V2.</p>
       ) : (
