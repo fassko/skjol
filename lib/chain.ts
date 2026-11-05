@@ -51,12 +51,29 @@ export async function readPolicy(policyId: Hex, pool: Address = chainConfig().po
 export async function poolSnapshot(cfg: PoolConfig | null = poolConfigs()[0] ?? null) {
   if (!cfg) throw new Error("No pool configured");
   const pool = cfg.pool;
-  const [available, reserved, signer, forwarder, simOperator] = await Promise.all([
+  const [available, reserved, signer, forwarder, simOperator, totalAssets, totalSupply, shareSymbol] = await Promise.all([
     publicClient().readContract({ address: pool, abi: poolAbi, functionName: "availableCapital" }),
     publicClient().readContract({ address: pool, abi: poolAbi, functionName: "totalReserved" }),
     publicClient().readContract({ address: pool, abi: poolAbi, functionName: "quoteSigner" }),
     publicClient().readContract({ address: pool, abi: poolAbi, functionName: "getForwarderAddress" }),
     publicClient().readContract({ address: pool, abi: poolAbi, functionName: "simulationOperator" }),
+    publicClient().readContract({ address: pool, abi: poolAbi, functionName: "totalAssets" }),
+    publicClient().readContract({ address: pool, abi: poolAbi, functionName: "totalSupply" }),
+    publicClient().readContract({ address: pool, abi: poolAbi, functionName: "symbol" }),
   ]);
-  return { currency: cfg.currency, pool, token: cfg.token, usdc: cfg.token, available, reserved, quoteSigner: signer, forwarder, simulationOperator: simOperator };
+  return {
+    currency: cfg.currency,
+    pool,
+    token: cfg.token,
+    usdc: cfg.token,
+    available,
+    reserved,
+    totalAssets,
+    totalSupply,
+    shareSymbol,
+    sharePair: cfg.sharePair,
+    quoteSigner: signer,
+    forwarder,
+    simulationOperator: simOperator,
+  };
 }

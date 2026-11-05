@@ -6,6 +6,7 @@ import { short } from "./api";
 
 const LINKS = [
   { href: "/cover", label: "Get cover" },
+  { href: "/capital", label: "Capital" },
   { href: "/policies", label: "My shipments" },
   { href: "/agent", label: "Freight agent" },
   { href: "/demo", label: "Demo scenarios" },

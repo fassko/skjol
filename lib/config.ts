@@ -70,13 +70,30 @@ export interface PoolConfig {
   pool: Address;
   token: Address;
   deployBlock: bigint;
+  shareSymbol: string;
+  sharePair: Address | null;
 }
+
+/** Arc Testnet Uniswap V2 (Arc Swap community deployment). Env overrides allowed. */
+export const UNISWAP_V2 = {
+  factory: (opt("UNISWAP_V2_FACTORY") ?? "0x7483847d46db2920dd64efa676cf72dcf765814f") as Address,
+  router: (opt("UNISWAP_V2_ROUTER") ?? opt("NEXT_PUBLIC_UNISWAP_V2_ROUTER") ?? "0xe27d5d256b370604f1ff060fb489c6a8e3f8a6d9") as Address,
+};
 
 /** Every configured pool. USDC is the primary pool; the EURC pool is optional. */
 export function poolConfigs(): PoolConfig[] {
   const c = chainConfig();
   const out: PoolConfig[] = [];
-  if (c.pool) out.push({ currency: "USDC", pool: c.pool, token: c.usdc, deployBlock: c.deployBlock });
+  if (c.pool) {
+    out.push({
+      currency: "USDC",
+      pool: c.pool,
+      token: c.usdc,
+      deployBlock: c.deployBlock,
+      shareSymbol: "skjolUSDC",
+      sharePair: (opt("USDC_SHARE_PAIR") ?? opt("NEXT_PUBLIC_USDC_SHARE_PAIR") ?? null) as Address | null,
+    });
+  }
   const eurcPool = opt("ARC_EURC_POOL_ADDRESS") ?? opt("NEXT_PUBLIC_EURC_POOL_ADDRESS");
   if (c.mode === "arc-testnet" && eurcPool) {
     out.push({
@@ -84,6 +101,8 @@ export function poolConfigs(): PoolConfig[] {
       pool: eurcPool as Address,
       token: (opt("ARC_EURC_ADDRESS") ?? ARC_TESTNET.eurc) as Address,
       deployBlock: BigInt(opt("ARC_EURC_POOL_DEPLOY_BLOCK") ?? "0"),
+      shareSymbol: "skjolEURC",
+      sharePair: (opt("EURC_SHARE_PAIR") ?? opt("NEXT_PUBLIC_EURC_SHARE_PAIR") ?? null) as Address | null,
     });
   }
   return out;

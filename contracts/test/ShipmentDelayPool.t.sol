@@ -32,13 +32,17 @@ contract ShipmentDelayPoolTest is Test {
     signer = vm.addr(signerPk);
     usdc = new MockUSDC();
     relay = new LocalReportRelay();
-    pool = new ShipmentDelayPool(address(relay), usdc, signer, 10_000e6, 6 hours, 1 hours, 30 days);
+    pool = new ShipmentDelayPool(
+      address(relay), usdc, signer, 10_000e6, 6 hours, 1 hours, 30 days, "Skjol USDC Pool", "skjolUSDC"
+    );
 
     usdc.mint(lp, 1_000e6);
     vm.startPrank(lp);
     usdc.approve(address(pool), type(uint256).max);
     pool.fund(1_000e6);
     vm.stopPrank();
+    assertEq(pool.balanceOf(lp), 1_000e6);
+    assertEq(pool.totalAssets(), 1_000e6);
 
     usdc.mint(customer, 1_000e6);
     vm.prank(customer);
@@ -124,13 +128,48 @@ contract ShipmentDelayPoolTest is Test {
     pool.purchase(q, sig);
   }
 
-  function test_OwnerCannotWithdrawReservedCapital() public {
+  function test_RedeemCappedByFreeCapital() public {
     _buy("P1");
     uint256 free = pool.availableCapital();
-    vm.expectRevert(ShipmentDelayPool.AmountExceedsFreeCapital.selector);
-    pool.withdrawFreeCapital(address(this), free + 1);
-    pool.withdrawFreeCapital(address(this), free);
+    uint256 maxAssets = pool.maxWithdraw(lp);
+    assertEq(maxAssets, free);
+    vm.startPrank(lp);
+    vm.expectRevert();
+    pool.withdraw(free + 1, lp, lp);
+    uint256 before = usdc.balanceOf(lp);
+    pool.withdraw(free, lp, lp);
+    vm.stopPrank();
+    assertEq(usdc.balanceOf(lp), before + free);
     assertEq(usdc.balanceOf(address(pool)), PAYOUT);
+    assertEq(pool.availableCapital(), 0);
+  }
+
+  function test_FundMintsSharesAndPremiumRaisesNav() public {
+    assertEq(pool.convertToAssets(1e6), 1e6);
+    _buy("P1");
+    // Premium added without minting shares → each share is worth more.
+    uint256 assetsPerShare = pool.convertToAssets(1e6);
+    assertGt(assetsPerShare, 1e6);
+    uint256 sharesBefore = pool.totalSupply();
+    address lp2 = makeAddr("lp2");
+    usdc.mint(lp2, 100e6);
+    vm.startPrank(lp2);
+    usdc.approve(address(pool), type(uint256).max);
+    uint256 minted = pool.deposit(100e6, lp2);
+    vm.stopPrank();
+    assertGt(minted, 0);
+    assertLt(minted, 100e6); // paid a premium relative to pre-premium NAV
+    assertEq(pool.totalSupply(), sharesBefore + minted);
+  }
+
+  function test_PayoutLowersShareNav() public {
+    ShipmentDelayPool.Quote memory q = _buy("P1");
+    uint256 navBefore = pool.convertToAssets(pool.balanceOf(lp));
+    uint64 arrival = q.agreedArrivalDeadline + THRESHOLD + 1;
+    vm.warp(arrival + 10 minutes);
+    _deliver(_report("P1", arrival, uint64(block.timestamp)));
+    uint256 navAfter = pool.convertToAssets(pool.balanceOf(lp));
+    assertLt(navAfter, navBefore);
   }
 
   // -------------------------------------------------------- quote validation

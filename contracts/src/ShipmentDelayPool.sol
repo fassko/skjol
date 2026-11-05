@@ -2,14 +2,21 @@
 pragma solidity ^0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ReceiverTemplate} from "./cre/ReceiverTemplate.sol";
 
 /// @title ShipmentDelayPool
-/// @notice Funded pool for parametric vessel-arrival delay protection, settled in USDC.
+/// @notice Funded capital vault for parametric vessel-arrival delay protection.
+///
+/// Capital providers deposit the settlement token and receive transferable ERC-20
+/// vault shares (ERC-4626). Premiums raise share NAV; claim payouts lower it.
+/// Redeems are capped by free capital (balance minus reserved payouts).
 ///
 /// Insured event (exactly one): the RECORDED ARRIVAL of the named vessel (IMO) at the named
 /// destination port (UN/LOCODE). The policy pays a fixed amount when the recorded arrival time is
@@ -20,8 +27,9 @@ import {ReceiverTemplate} from "./cre/ReceiverTemplate.sol";
 /// (`onReport`, gated by the configured forwarder and optional workflow identity checks).
 /// Eligibility and payout are recomputed here from the locked policy terms; the report only
 /// carries evidence (timestamps + digest), never a payout decision.
-contract ShipmentDelayPool is ReceiverTemplate, EIP712, ReentrancyGuard {
+contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard {
   using SafeERC20 for IERC20;
+  using Math for uint256;
 
   // ---------------------------------------------------------------- constants
   uint8 public constant EVENT_VESSEL_ARRIVAL_AT_PORT = 1;
@@ -96,6 +104,7 @@ contract ShipmentDelayPool is ReceiverTemplate, EIP712, ReentrancyGuard {
   }
 
   // ------------------------------------------------------------------ storage
+  /// @notice Settlement token (same as ERC-4626 `asset()`). Kept for existing callers.
   IERC20 public immutable token;
   address public quoteSigner;
   uint64 public maxEvidenceAge; // seconds
@@ -114,8 +123,7 @@ contract ShipmentDelayPool is ReceiverTemplate, EIP712, ReentrancyGuard {
   mapping(bytes32 => bool) public reportProcessed;
 
   // ------------------------------------------------------------------- events
-  event PoolFunded(address indexed from, uint256 amount);
-  event PoolWithdrawn(address indexed to, uint256 amount);
+  event PoolFunded(address indexed from, uint256 amount, uint256 shares);
   event PolicyPurchased(
     bytes32 indexed policyId,
     address indexed beneficiary,
@@ -160,7 +168,6 @@ contract ShipmentDelayPool is ReceiverTemplate, EIP712, ReentrancyGuard {
   error SimulationOriginRejected();
   error ReviewNotOpen();
   error PolicyNotActive();
-  error AmountExceedsFreeCapital();
   error ZeroAddress();
 
   constructor(
@@ -170,8 +177,15 @@ contract ShipmentDelayPool is ReceiverTemplate, EIP712, ReentrancyGuard {
     uint128 maxPayout_,
     uint64 maxEvidenceAge_,
     uint64 minLeadTime_,
-    uint64 reviewDelay_
-  ) ReceiverTemplate(forwarder) EIP712("SkjolShipmentDelayPool", "1") {
+    uint64 reviewDelay_,
+    string memory shareName,
+    string memory shareSymbol
+  )
+    ReceiverTemplate(forwarder)
+    ERC20(shareName, shareSymbol)
+    ERC4626(token_)
+    EIP712("SkjolShipmentDelayPool", "1")
+  {
     if (address(token_) == address(0) || quoteSigner_ == address(0)) revert ZeroAddress();
     token = token_;
     quoteSigner = quoteSigner_;
@@ -182,9 +196,10 @@ contract ShipmentDelayPool is ReceiverTemplate, EIP712, ReentrancyGuard {
   }
 
   // ---------------------------------------------------------------- liquidity
-  function fund(uint256 amount) external nonReentrant {
-    token.safeTransferFrom(msg.sender, address(this), amount);
-    emit PoolFunded(msg.sender, amount);
+  /// @notice Deposit settlement tokens and mint vault shares to `msg.sender`.
+  function fund(uint256 amount) external returns (uint256 shares) {
+    shares = deposit(amount, msg.sender);
+    emit PoolFunded(msg.sender, amount, shares);
   }
 
   function availableCapital() public view returns (uint256) {
@@ -192,11 +207,36 @@ contract ShipmentDelayPool is ReceiverTemplate, EIP712, ReentrancyGuard {
     return bal > totalReserved ? bal - totalReserved : 0;
   }
 
-  function withdrawFreeCapital(address to, uint256 amount) external onlyOwner nonReentrant {
-    if (to == address(0)) revert ZeroAddress();
-    if (amount > availableCapital()) revert AmountExceedsFreeCapital();
-    token.safeTransfer(to, amount);
-    emit PoolWithdrawn(to, amount);
+  /// @dev Redeems cannot pull capital reserved for active policies.
+  function maxWithdraw(address owner) public view override returns (uint256) {
+    uint256 ownerAssets = _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
+    uint256 free = availableCapital();
+    return ownerAssets < free ? ownerAssets : free;
+  }
+
+  /// @dev Shares redeemable such that underlying assets stay within free capital.
+  function maxRedeem(address owner) public view override returns (uint256) {
+    uint256 free = availableCapital();
+    if (free == 0) return 0;
+    uint256 freeShares = _convertToShares(free, Math.Rounding.Floor);
+    uint256 bal = balanceOf(owner);
+    return bal < freeShares ? bal : freeShares;
+  }
+
+  function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256) {
+    return super.deposit(assets, receiver);
+  }
+
+  function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256) {
+    return super.mint(shares, receiver);
+  }
+
+  function withdraw(uint256 assets, address receiver, address owner) public override nonReentrant returns (uint256) {
+    return super.withdraw(assets, receiver, owner);
+  }
+
+  function redeem(uint256 shares, address receiver, address owner) public override nonReentrant returns (uint256) {
+    return super.redeem(shares, receiver, owner);
   }
 
   // ------------------------------------------------------------------ quoting
