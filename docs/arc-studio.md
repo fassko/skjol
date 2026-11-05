@@ -60,6 +60,49 @@ The review raised five items. The contract source in [`arc-studio/contracts/`](.
 | Ownership transfer is single-step | `ReceiverTemplate` uses `Ownable2Step`. The new owner has to call `acceptOwnership`. | `test_OwnershipTransferIsTwoStep` |
 | The 24-hour threshold is part of the signed quote | Not changed. The threshold belongs to each product and is fixed in the signed quote on purpose. The quote signer is the control. | — |
 
+## Redeploy the fixed pool from Arc Studio
+
+The fixes above go live only through a new deployment, and that deployment has to come from Studio so the live pool stays Studio-built. Three steps.
+
+### 1. Paste this into the Studio project chat
+
+> Update the pool contract to the reviewed and fixed version from our GitHub repo. Then test it, deploy it and hand it over.
+>
+> 1. Replace these three files with the versions at commit `defc1fa4e68f3659eadeb4410760baa7bb8aebbc`:
+>    - `contracts/ShipmentDelayPool.sol` ← https://raw.githubusercontent.com/fassko/skjol/defc1fa4e68f3659eadeb4410760baa7bb8aebbc/arc-studio/contracts/ShipmentDelayPool.sol
+>    - `contracts/cre/ReceiverTemplate.sol` ← https://raw.githubusercontent.com/fassko/skjol/defc1fa4e68f3659eadeb4410760baa7bb8aebbc/arc-studio/contracts/cre/ReceiverTemplate.sol
+>    - `contracts/test/ShipmentDelayPool.t.sol` ← https://raw.githubusercontent.com/fassko/skjol/defc1fa4e68f3659eadeb4410760baa7bb8aebbc/arc-studio/contracts/test/ShipmentDelayPool.t.sol
+> 2. Compile and run the Foundry tests. All 39 must pass. Show me the summary.
+> 3. Review the changes against your earlier security review: exit pricing on `availableCapital()`, `trySafeTransfer` with `owedPayout` / `claimPayout`, reports rejected unless a workflow identity or the simulation operator is set (`ReportIdentityNotConfigured`), and `Ownable2Step`.
+> 4. Deploy `ShipmentDelayPool` to Arc Testnet from the Circle wallet with exactly these constructor arguments:
+>    - `forwarder`: `0x6E9EE680ef59ef64Aa8C7371279c27E496b5eDc1` (CRE simulation forwarder)
+>    - `token_`: `0x3600000000000000000000000000000000000000` (Arc USDC)
+>    - `quoteSigner_`: `0x81986f54507a51BD6633020C58A2C115350b5803`
+>    - `maxPayout_`: `20000000`
+>    - `maxEvidenceAge_`: `21600`
+>    - `minLeadTime_`: `60`
+>    - `reviewDelay_`: `2592000`
+>    - `shareName`: `Skjol USDC Pool`
+>    - `shareSymbol`: `skjolUSDC`
+> 5. Call `transferOwnership(0x006B92D63938d9B9e3485077e7A72C9a9944364E)`. Ownership is two-step now, so that address accepts it afterwards. Don't call `setSimulationOperator`; the new owner sets it.
+> 6. Point the Studio app at the new pool (`POOL_ADDRESS` and the deploy block in `src/contract.ts`). Show the exit value with `previewRedeem`/`maxWithdraw` instead of `convertToAssets`, and add a **Claim payout** button for `owedPayout(account) > 0` that calls `claimPayout(to)`. Add `previewRedeem`, `exitValue`, `owedPayout`, `claimPayout`, `totalOwed` and `acceptOwnership` to the app's ABI.
+> 7. Report the pool address, the deploy transaction hash, the deploy block and the `transferOwnership` transaction hash.
+
+### 2. Take over the pool and switch Skjol to it
+
+With the address and deploy transaction from Studio's report:
+
+```bash
+POOL=0x… DEPLOY_TX=0x… POOL_FUNDING=20000000 node --env-file=.env.local --import tsx scripts/adopt-studio-pool.mts
+POOL_TOKEN=USDC SEED_AMOUNT=2000000 node --env-file=.env.local --import tsx scripts/seed-share-pair.mts
+```
+
+The first script checks that the pool is the fixed build, accepts ownership, sets the simulation operator, funds 20 USDC, rewrites `deployments/arc-testnet.json` (the old record is kept as `arc-testnet-studio-v1.json`) and puts the pool first in the CRE configs. The second creates and seeds the new share/USDC pair.
+
+### 3. Point the app at it
+
+Set `ARC_POOL_ADDRESS`, `NEXT_PUBLIC_POOL_ADDRESS`, `ARC_POOL_DEPLOY_BLOCK`, `USDC_SHARE_PAIR` and `NEXT_PUBLIC_USDC_SHARE_PAIR` in `.env.local` and in Vercel (Production and Preview). **Then redeploy production**, because env changes don't reach a running deployment. Finally, update the addresses in this file, `README.md` and `FEEDBACK.md`.
+
 ## Run the Studio app locally
 
 ```bash

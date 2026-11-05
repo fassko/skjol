@@ -1,6 +1,6 @@
 # Euro cover with EURC and Circle Bridge Kit
 
-Track: **Arc: Bridge Kit for Non-USDC Assets**.
+Not entered for an Arc bounty. Arc's bounties require building in Arc Studio, and this flow was built outside it. Skjol's Arc entry is the Studio pool: [`arc-studio.md`](./arc-studio.md).
 
 Skjol's arrival data covers Finnish ports, so most buyers think in euros. Skjol runs a second pool on Arc Testnet that settles in **EURC**: premiums are paid and payouts are made in EURC. Buyers whose EURC sits on another chain bring it to Arc with **Circle Bridge Kit** (CCTP burn → Circle attestation → mint), and can send a payout back out the same way.
 

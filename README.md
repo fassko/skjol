@@ -4,7 +4,7 @@
 
 Parametric **arrival delay cover** for small importers: pay a fixed premium in test USDC/EURC; if the named vessel’s recorded arrival at the named port is more than 24 hours after the agreed deadline, a fixed payout is sent to the wallet.
 
-Built for ETHGlobal Mumbai on **Arc** (settlement), **Arkiv** (application DB), **Swarm** (encrypted BoL storage), and **Chainlink CRE** (arrival evaluation).
+Built for ETHGlobal Mumbai on **Arc** (settlement), **Arkiv** (application DB), **Swarm** (encrypted BoL storage), **Chainlink CRE** (arrival evaluation), **Hedera** (x402 agent payments) and **Uniswap** (pool share trading).
 
 **Arc Studio project:** [studio.arc.io/app/03aa1ed4-…](https://studio.arc.io/app/03aa1ed4-209d-44ee-b09c-2523a48babe3). The USDC pool was tested and deployed in Arc Studio, which also built a pool app on it. Arc bounty: *Best Smart Contracts with Advanced Stablecoin Logic, In Arc Studio*. Details: [`docs/arc-studio.md`](./docs/arc-studio.md).
 
@@ -161,4 +161,9 @@ pnpm dev
 
 ## How we used AI
 
-Cursor / Composer agents helped implement Swarm postage + Bee tags, the Storage strip UI, and the `/arkiv` prize documentation. Product rules, contracts, and Arkiv schemas were directed by the team; AI-generated text was reviewed before submit.
+- **Cursor / Composer** helped implement Swarm postage and Bee tags, the Storage strip UI, and the `/arkiv` prize documentation.
+- **Arc Studio's agent** compiled, tested, reviewed and deployed the USDC pool and built the Studio app ([`docs/arc-studio.md`](./docs/arc-studio.md)).
+- **Claude Code and Codex** helped with the freight agent, the x402 and Hedera integration, the CRE workflow, the fixes from the pool review and their tests, and the README and track docs.
+- **In the product:** the AI SDK (through Vercel AI Gateway) reads bills of lading and runs the freight agent. It never decides a payout. The contract recomputes that from the locked terms.
+
+The team directed the product rules, contracts and Arkiv schemas. AI-written code and text were reviewed before submission.
