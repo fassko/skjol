@@ -9,7 +9,8 @@ import { store, type AppStore, type ChainEventKind, type PolicyRecord, type Poli
 // Arc is authoritative for purchased terms, reserves and payments. This job mirrors contract
 // events into Arkiv. Idempotency key: `${chainId}:${txHash}:${logIndex}` (checked before every
 // write). Restart recovery: resume from the highest block already mirrored in Arkiv (re-scanning
-// that block is safe because writes are idempotent). Each run is bounded so it fits a cron call.
+// that block is safe because writes are idempotent). Each log query is bounded; a run keeps
+// walking forward to the chain head so a purchase is mirrored in the same call.
 
 const KINDS: ChainEventKind[] = [
   "PolicyPurchased",
@@ -204,18 +205,33 @@ export async function runSync(opts: { maxBlocks?: bigint; retries?: number } = {
   };
 }
 
+const MAX_PASSES = 12;
+
 async function syncPool(s: AppStore, chainId: number, p: PoolConfig, head: bigint, useEventResume: boolean, opts: { maxBlocks?: bigint; retries?: number }) {
   const [cursor, lastEvent] = await Promise.all([s.getSyncCursor(chainId, p.pool), useEventResume ? s.latestChainEventBlock(chainId) : Promise.resolve(null)]);
   // Resume from the furthest point known to be fully mirrored (inclusive re-scan is idempotent).
   const candidates = [p.deployBlock, cursor, lastEvent].filter((x): x is bigint => x !== null);
-  const from = candidates.reduce((a, b) => (a > b ? a : b));
-  const to = head - from > (opts.maxBlocks ?? MAX_RANGE) ? from + (opts.maxBlocks ?? MAX_RANGE) : head;
-
-  const logs = await publicClient().getLogs({ address: p.pool, fromBlock: from, toBlock: to });
-  const decoded = decodePoolLogs(logs as Log[]);
-  const res = await syncDecoded(s, chainId, p.pool, decoded, from, to, to === head, opts.retries ?? 2);
-  if (res.failed.length === 0 && to > from) await s.setSyncCursor(chainId, p.pool, to);
-  return res;
+  let from = candidates.reduce((a, b) => (a > b ? a : b));
+  const span = opts.maxBlocks ?? MAX_RANGE;
+  const summary: SyncResult = { fromBlock: from.toString(), toBlock: from.toString(), scanned: 0, written: 0, skippedExisting: 0, failed: [], done: false };
+  let headNow = head;
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    if (pass > 0) headNow = await publicClient().getBlockNumber();
+    const to = headNow - from > span ? from + span : headNow;
+    const logs = await publicClient().getLogs({ address: p.pool, fromBlock: from, toBlock: to });
+    const decoded = decodePoolLogs(logs as Log[]);
+    const res = await syncDecoded(s, chainId, p.pool, decoded, from, to, to === headNow, opts.retries ?? 2);
+    summary.toBlock = res.toBlock;
+    summary.scanned += res.scanned;
+    summary.written += res.written;
+    summary.skippedExisting += res.skippedExisting;
+    summary.failed = res.failed;
+    summary.done = res.failed.length === 0 && to === headNow;
+    if (res.failed.length === 0 && to > from) await s.setSyncCursor(chainId, p.pool, to);
+    if (res.failed.length > 0 || to === headNow) break;
+    from = to;
+  }
+  return summary;
 }
 
 /** Exposed for tests: apply events in order with bounded retries; stops at first hard failure. */

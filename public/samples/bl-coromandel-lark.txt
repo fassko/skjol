@@ -1,0 +1,15 @@
+SYNTHETIC DEMO DOCUMENT — NOT A REAL SHIPMENT
+===============================================
+BILL OF LADING                                        Page 1 of 1
+B/L No.: CMB-CL-22081             Booking Ref: CMB-88210
+Shipper: Lanka Tea Packers Ltd, Colombo
+Consignee: Marina Wholesale, Chennai
+
+Vessel: COROMANDEL LARK      IMO No. 9700079
+Voyage: CL-2208E
+Port of Loading: Colombo (LKCMB)      Port of Discharge: Chennai (INMAA)
+Laden on board: 2 December 2026, 08:00 UTC
+Arrival deadline agreed in sales contract SC-4418: 10 December 2026, 12:00 UTC
+ETA: 9 December 2026, 20:00 UTC
+
+Goods: 1 x 20' container, packed tea

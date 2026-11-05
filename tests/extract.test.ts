@@ -47,6 +47,25 @@ describe("document extraction (offline rules)", () => {
     expect(x.fields.destinationLocode.value).toBe("FITKU");
   });
 
+  it("extracts the extra buy-assistant sample bills of lading", async () => {
+    const cases = [
+      ["bl-gulf-mallard.txt", "GULF MALLARD", "9700067", "GM-4412E", "INMUN"],
+      ["bl-coromandel-lark.txt", "COROMANDEL LARK", "9700079", "CL-2208E", "INMAA"],
+      ["bl-harbour-siskin.txt", "HARBOUR SISKIN", "9700081", "HS-1184E", "FIHMN"],
+      ["bl-malabar-kite.txt", "MALABAR KITE", "9700093", "MK-3091W", "INCOK"],
+    ] as const;
+    for (const [file, vessel, imo, voyage, locode] of cases) {
+      const x = await extractShipment(doc(file));
+      expect(x.fields.vesselName.value, file).toBe(vessel);
+      expect(x.fields.vesselImo.value, file).toBe(imo);
+      expect(x.fields.voyageRef.value, file).toBe(voyage);
+      expect(x.fields.destinationLocode.value, file).toBe(locode);
+      expect(x.fields.departureDate.value, file).toBe("2026-12-02T08:00:00.000Z");
+      expect(x.fields.agreedArrivalDeadline.value, file).toBe("2026-12-10T12:00:00.000Z");
+      expect(x.issues.filter((i) => i.kind !== "unverified"), file).toEqual([]);
+    }
+  });
+
   it("extracts an Indian destination (Nhava Sheva) as a supported port", async () => {
     const x = await extractShipment(doc("bl-indus-heron.txt"));
     expect(x.fields.vesselName.value).toBe("INDUS HERON");

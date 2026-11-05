@@ -1,0 +1,21 @@
+SYNTHETIC DEMO DOCUMENT — NOT A REAL SHIPMENT
+===============================================
+BILL OF LADING (NON-NEGOTIABLE COPY)                 Page 1 of 1
+B/L No.: JEA-MK-77302             Booking Ref: BKG-77302-JEA
+Shipper: Gulf Polymer FZE, Jebel Ali
+Consignee: Kochi Home Plastics Pvt Ltd, Kochi
+Notify party: same as consignee
+
+Vessel: MALABAR KITE            IMO: 9700093      MMSI: 419990036
+Voyage No.: MK-3091W
+Port of Loading: Jebel Ali (AEJEA)
+Port of Discharge: Kochi (INCOK)
+Shipped on board date: 2 December 2026 08:00 UTC
+ETA: 9 December 2026 18:00 UTC
+
+Container: MSCU 773021-6   40' HC   Seal: AE441902
+Description of goods: 16 pallets household plastics
+Gross weight: 12,260 kg
+
+The buyer and seller agree the vessel shall arrive at the port of discharge
+no later than 10 December 2026 12:00 UTC.

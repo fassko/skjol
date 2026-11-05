@@ -1,0 +1,14 @@
+SYNTHETIC DEMO DOCUMENT — NOT A REAL SHIPMENT
+===============================================
+BILL OF LADING                                        Page 1 of 1
+B/L No.: GOT-HS-11844             Booking Ref: GOT-66118
+Shipper: Vastergotland Timber AB, Gothenburg
+Consignee: Haminan Satama Oy, Hamina
+
+Vessel: HARBOUR SISKIN      IMO No. 9700081      MMSI: 230990008
+Voyage: HS-1184E
+Port of Loading: Gothenburg (SEGOT)      Port of Discharge: Hamina (FIHMN)
+Shipped on board date: 2 December 2026 08:00 UTC
+Sales contract: the vessel shall arrive no later than 10 December 2026 12:00 UTC.
+
+Goods: 12 bundles sawn timber
