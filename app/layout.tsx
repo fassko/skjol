@@ -29,7 +29,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>{children}</Suspense>
           </main>
           <footer className="border-t border-line text-xs text-muted py-4 px-6 text-center">
-            <p>Skjol. Arrival delay protection built for small importers.</p>
+            <p>
+              Skjol. Arrival delay protection built for small importers.{" "}
+              <a href="https://github.com/fassko/skjol" target="_blank" rel="noopener noreferrer" className="underline hover:text-ink">
+                Source on GitHub
+              </a>
+            </p>
           </footer>
         </Providers>
       </body>
