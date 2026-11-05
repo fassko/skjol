@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, short } from "../components/api";
 import { ErrorNote, ExtLink, Section, Spinner } from "../components/ui";
@@ -8,6 +9,11 @@ import { ErrorNote, ExtLink, Section, Spinner } from "../components/ui";
 function State({ kind, children }: { kind: "live" | "sim" | "needs" | "local"; children: React.ReactNode }) {
   const cls = { live: "text-ok", sim: "text-warn", needs: "text-bad", local: "text-muted" }[kind];
   return <span className={`tag ${cls}`}>{children}</span>;
+}
+
+function Addr({ explorer, address }: { explorer: string | null | undefined; address: string | null | undefined }) {
+  if (!address) return <span>—</span>;
+  return <ExtLink href={explorer ? `${explorer}/address/${address}` : null}>{address}</ExtLink>;
 }
 
 export default function IntegrationsPage() {
@@ -46,18 +52,54 @@ export default function IntegrationsPage() {
           <Section title="Arc — USDC pool and policy contract" aside={<State kind="live">Live on Arc Testnet</State>}>
             <dl className="text-sm grid sm:grid-cols-[180px_1fr] gap-y-1.5">
               <dt className="text-muted">Pool contract</dt><dd className="mono"><ExtLink href={d.arc.poolUrl}>{d.arc.pool}</ExtLink></dd>
-              <dt className="text-muted">USDC (ERC-20, 6 dp)</dt><dd className="mono">{d.arc.usdc}</dd>
+              <dt className="text-muted">USDC (ERC-20, 6 dp)</dt><dd className="mono"><Addr explorer={d.arc.chain.explorer} address={d.arc.usdc} /></dd>
               {"error" in d.arc.snapshot ? (
                 <><dt className="text-muted">Status</dt><dd className="text-bad">{d.arc.snapshot.error}</dd></>
               ) : (
                 <>
                   <dt className="text-muted">Free collateral</dt><dd>{d.arc.snapshot.available} test USDC</dd>
                   <dt className="text-muted">Reserved for payouts</dt><dd>{d.arc.snapshot.reserved} test USDC</dd>
-                  <dt className="text-muted">Quote signer</dt><dd className="mono">{d.arc.snapshot.quoteSigner}</dd>
+                  <dt className="text-muted">Quote signer</dt><dd className="mono"><Addr explorer={d.arc.chain.explorer} address={d.arc.snapshot.quoteSigner} /></dd>
                 </>
               )}
             </dl>
           </Section>
+
+          {d.arc.pools?.some((p: any) => p.currency === "EURC") && (
+            <Section title="Arc — EURC pool and Circle Bridge Kit" aside={<State kind="live">Live on Arc Testnet</State>}>
+              {d.arc.pools
+                .filter((p: any) => p.currency === "EURC")
+                .map((p: any) => (
+                  <dl key={p.pool} className="text-sm grid sm:grid-cols-[180px_1fr] gap-y-1.5">
+                    <dt className="text-muted">Pool contract</dt><dd className="mono"><ExtLink href={p.poolUrl}>{p.pool}</ExtLink></dd>
+                    <dt className="text-muted">EURC (ERC-20, 6 dp)</dt><dd className="mono"><Addr explorer={d.arc.chain.explorer} address={p.token} /></dd>
+                    {"error" in p.snapshot ? (
+                      <><dt className="text-muted">Status</dt><dd className="text-bad">{p.snapshot.error}</dd></>
+                    ) : (
+                      <>
+                        <dt className="text-muted">Free collateral</dt><dd>{p.snapshot.available} test EURC</dd>
+                        <dt className="text-muted">Reserved for payouts</dt><dd>{p.snapshot.reserved} test EURC</dd>
+                      </>
+                    )}
+                  </dl>
+                ))}
+              <p className="text-xs text-muted mt-3">
+                Same pool contract, settled in EURC. Buyers bring EURC from Ethereum Sepolia or Base Sepolia with Bridge Kit (CCTP burn, attestation, mint) on the buy step, and can bridge a payout back out from the policy page.
+              </p>
+            </Section>
+          )}
+
+          {d.x402 && (
+            <Section title="x402 paid API — Circle Gateway on Arc and Hedera" aside={<State kind="live">Live</State>}>
+              <dl className="text-sm grid sm:grid-cols-[180px_1fr] gap-y-1.5">
+                <dt className="text-muted">Catalog</dt><dd className="mono"><ExtLink href={d.x402.catalog}>{d.x402.catalog}</ExtLink></dd>
+                <dt className="text-muted">Arc nanopayments</dt><dd className="mono">{d.x402.arc.payTo ? `${d.x402.arc.network} → ${d.x402.arc.payTo}` : "not configured"}</dd>
+                <dt className="text-muted">Hedera USDC</dt><dd className="mono">{d.x402.hedera.payTo ? `${d.x402.hedera.network} → ${d.x402.hedera.payTo} (${d.x402.hedera.token})` : "not configured (set HEDERA_PAYEE_ACCOUNT_ID)"}</dd>
+                <dt className="text-muted">HCS audit topic</dt><dd className="mono">{d.x402.auditTopic ? <ExtLink href={d.x402.auditTopicUrl}>{d.x402.auditTopic}</ExtLink> : "not configured"}</dd>
+              </dl>
+              <p className="text-xs text-muted mt-3">The Freight agent on /agent discovers these services and pays for them per call, inside spending limits enforced on the server.</p>
+            </Section>
+          )}
 
           <Section
             title="Chainlink CRE — arrival evaluation workflow"
@@ -65,15 +107,15 @@ export default function IntegrationsPage() {
           >
             <div className="text-sm space-y-2">
               <p>
-                The workflow in <span className="mono">cre/arrival-evaluator</span> reads the policy terms from Arc, fetches Digitraffic port-call records, validates them and submits a signed report to the pool. The pool accepts reports only from its configured forwarder.
+                The workflow in <span className="mono">cre/arrival-evaluator</span> reads the policy terms from Arc, fetches arrival records for the destination port (Digitraffic port calls for Finland, VesselFinder AIS port calls for India), validates them and submits a signed report to the pool. The pool accepts reports only from its configured forwarder.
               </p>
               <dl className="grid sm:grid-cols-[180px_1fr] gap-y-1.5">
-                <dt className="text-muted">Configured forwarder</dt><dd className="mono">{d.cre.forwarder} <span className="text-xs text-muted">({d.cre.forwarderKind})</span></dd>
-                <dt className="text-muted">Simulation operator gate</dt><dd className="mono">{d.cre.simulationOperator}</dd>
-                <dt className="text-muted">Production forwarder</dt><dd className="mono">{d.cre.productionForwarder} <span className="text-xs text-muted">(not configured; requires a deployed workflow)</span></dd>
+                <dt className="text-muted">Configured forwarder</dt><dd className="mono"><Addr explorer={d.arc.chain.explorer} address={d.cre.forwarder} /> <span className="text-xs text-muted">({d.cre.forwarderKind})</span></dd>
+                <dt className="text-muted">Simulation operator gate</dt><dd className="mono"><Addr explorer={d.arc.chain.explorer} address={d.cre.simulationOperator} /></dd>
+                <dt className="text-muted">Production forwarder</dt><dd className="mono"><Addr explorer={d.arc.chain.explorer} address={d.cre.productionForwarder} /> <span className="text-xs text-muted">(not configured; requires a deployed workflow)</span></dd>
                 <dt className="text-muted">CRE chain name</dt><dd className="mono">{d.cre.chainName}</dd>
               </dl>
-              <p className="text-xs text-muted">This is not a deployed decentralised workflow. Simulation runs the same code on one machine through the CRE CLI.</p>
+              <p className="text-xs text-muted">Hackathon path: run the same WASM locally via <span className="mono">cre workflow simulate</span> (see <span className="mono">cre/README.md</span>). DON deploy needs Chainlink deploy access after their MNDA.</p>
             </div>
           </Section>
 
@@ -95,12 +137,23 @@ export default function IntegrationsPage() {
                 ) : (
                   <ul className="text-xs mono space-y-0.5">
                     {d.arkiv.recentEvents.map((e: any) => (
-                      <li key={e.eventId}>{e.kind} · entity {short(e.key, 8)}</li>
+                      <li key={e.eventId} className="flex flex-wrap gap-x-2">
+                        <span>{e.kind}</span>
+                        <span className="text-muted">·</span>
+                        {e.key ? <ExtLink href={e.entityUrl}>Arkiv entity {short(e.key, 8)}</ExtLink> : <span className="text-muted">Arkiv entity pending</span>}
+                        <span className="text-muted">·</span>
+                        <ExtLink href={e.txUrl}>Arc tx {short(e.txHash, 6)}</ExtLink>
+                        {e.policyId && (
+                          <>
+                            <span className="text-muted">·</span>
+                            <Link href={`/policies/${e.policyId}`} className="underline decoration-line underline-offset-2 hover:decoration-ink">policy {short(e.policyId, 6)}</Link>
+                          </>
+                        )}
+                      </li>
                     ))}
                   </ul>
                 )}
               </div>
-              <pre className="text-xs mono bg-paper-2 rounded p-3 whitespace-pre-wrap">{d.arkiv.sampleQuery}</pre>
             </div>
           </Section>
 

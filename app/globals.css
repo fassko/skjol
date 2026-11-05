@@ -108,3 +108,7 @@ body {
 
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .pulse { animation: pulse-dot 1.4s ease-in-out infinite; }
+
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.grow-x { transform-origin: left; animation: grow-x 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .grow-x { animation: none; } }

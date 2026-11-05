@@ -61,7 +61,7 @@ export function Assistant() {
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-sm text-ink-2 space-y-3">
-            <p>Hi! I can help you protect a shipment against a late vessel arrival at a Finnish port. Upload your bill of lading or booking confirmation to start, or try a synthetic sample:</p>
+            <p>Hi! I can help you protect a shipment against a late vessel arrival at a port in Finland or India. Upload your bill of lading or booking confirmation to start, or try a synthetic sample:</p>
             <div className="flex flex-wrap gap-2">
               {SAMPLES.slice(0, 3).map((s) => (
                 <button key={s.file} className="btn btn-ghost !py-1 !px-3 !text-xs" disabled={uploading} onClick={() => sample(s.file)}>
@@ -128,7 +128,7 @@ const TOOL_LABELS: Record<string, string> = {
   getPolicyStatus: "Checked policy status",
 };
 
-function ConfirmTool({ part, addToolOutput }: { part: any; addToolOutput: any }) {
+export function ConfirmTool({ part, addToolOutput }: { part: any; addToolOutput: any }) {
   const [extraction, setExtraction] = useState<Extraction | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const id = part.input?.shipmentId as string | undefined;

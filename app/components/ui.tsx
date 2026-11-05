@@ -11,8 +11,8 @@ export function DataLabel({ label }: { label: "live" | "recorded" | "synthetic" 
   return <span className={`tag ${styles[label] ?? "text-muted"}`}>{text[label] ?? label}</span>;
 }
 
-export function TestFunds() {
-  return <span className="tag text-signal">Test USDC</span>;
+export function TestFunds({ currency = "USDC" }: { currency?: string }) {
+  return <span className="tag text-signal">Test {currency}</span>;
 }
 
 const STATUS: Record<string, { text: string; cls: string }> = {
