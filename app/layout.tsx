@@ -29,7 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>{children}</Suspense>
           </main>
           <footer className="border-t border-line text-xs text-muted py-4 px-6 text-center">
-            <p>Vessel arrival is not container unloading or delivery.</p>
+            <p>Skjol. Arrival delay protection built for small importers.</p>
           </footer>
         </Providers>
       </body>
