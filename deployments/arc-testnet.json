@@ -1,0 +1,19 @@
+{
+  "network": "arc-testnet",
+  "chainId": 5042002,
+  "usdc": "0x3600000000000000000000000000000000000000",
+  "forwarder": "0x6E9EE680ef59ef64Aa8C7371279c27E496b5eDc1",
+  "forwarderKind": "MockKeystoneForwarder (CRE simulation)",
+  "deployer": "0x006B92D63938d9B9e3485077e7A72C9a9944364E",
+  "quoteSigner": "0x81986f54507a51BD6633020C58A2C115350b5803",
+  "txs": {
+    "deploy": "0x7aad33acea1af496857a4938911b2b7a0a5369c6170052fa1724c4ea0b0f592f",
+    "setSimulationOperator": "0xc740d1a6ae8898f871ac17dea539fac24c48c38d069b5924fe567588b4cde538",
+    "approve": "0xb231687229b679d3a6eb6996fd08ec3028c1fb29cdabf9f3dc2f5169ae8f2484",
+    "fund": "0xca62c55035a002b7217bee0e29e5f991f783dc22c5b6c1d47287ea155d52ca1c"
+  },
+  "pool": "0x45fffb2133bad82ec6ebb140db4f3ce2f651b565",
+  "deployBlock": "70812315",
+  "simulationOperator": "0x006B92D63938d9B9e3485077e7A72C9a9944364E",
+  "poolBalance": "10000000"
+}

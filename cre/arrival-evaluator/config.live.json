@@ -1,0 +1,11 @@
+{
+  "schedule": "0 */15 * * * *",
+  "chainName": "arc-testnet",
+  "poolAddress": "0x45FFfb2133bAD82eC6eBb140db4F3ce2F651B565",
+  "gasLimit": "600000",
+  "digitrafficBaseUrl": "https://meri.digitraffic.fi",
+  "digitrafficUser": "skjol-hackathon/0.1",
+  "replay": false,
+  "maxEvidenceAgeSec": 21600,
+  "watchPolicyIds": []
+}
