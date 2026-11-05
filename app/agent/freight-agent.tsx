@@ -318,6 +318,60 @@ function ApprovalTool({ part, addToolOutput }: { part: any; addToolOutput: any }
   );
 }
 
+function McpConnect() {
+  const [token, setToken] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [origin, setOrigin] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => setOrigin(window.location.origin), []);
+
+  async function reveal() {
+    setErr(null);
+    try {
+      const r = await api<{ token: string; expiresAt: string }>("/api/mcp/token");
+      setToken(r.token);
+      setExpiresAt(r.expiresAt);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  }
+
+  const url = `${origin}/api/mcp`;
+  const config = token
+    ? JSON.stringify({ mcpServers: { "skjol-freight": { url, headers: { Authorization: `Bearer ${token}` } } } }, null, 2)
+    : "";
+
+  return (
+    <div className="space-y-2 border-t border-line pt-3">
+      <div className="font-semibold">Use from another agent</div>
+      <p className="text-xs text-muted">The same tools are available over MCP at {url || "/api/mcp"}. The token expires with this sign-in.</p>
+      {!token ? (
+        <button className="btn btn-ghost !py-1 !text-xs" onClick={reveal}>
+          Show MCP token
+        </button>
+      ) : (
+        <>
+          <pre className="text-[11px] leading-snug overflow-x-auto rounded-lg bg-paper-2 p-2 mono">{config}</pre>
+          <p className="text-xs text-muted">Expires {expiresAt ? fmtDate(expiresAt) : ""}.</p>
+          <button
+            className="btn btn-ghost !py-1 !text-xs"
+            onClick={() => {
+              void navigator.clipboard.writeText(config).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              });
+            }}
+          >
+            {copied ? "Copied" : "Copy Cursor config"}
+          </button>
+        </>
+      )}
+      <ErrorNote error={err} />
+    </div>
+  );
+}
+
 function WalletPanel({ wallet, error, onChange, refresh }: { wallet: WalletView | null; error: string | null; onChange: (w: WalletView) => void; refresh: () => void }) {
   const [form, setForm] = useState<{ perCallMax: string; dailyCap: string; approvalThreshold: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -412,6 +466,7 @@ function WalletPanel({ wallet, error, onChange, refresh }: { wallet: WalletView 
           {busy === "deposit" ? "Depositing…" : "Deposit 1 USDC into Gateway"}
         </button>
         {note && <p className="text-xs text-ok">{note}</p>}
+        <McpConnect />
         {wallet.auditTopic && (
           <p className="text-xs">
             Every decision is logged to Hedera topic <ExtLink href={wallet.auditTopic.url}>{wallet.auditTopic.id}</ExtLink>.
