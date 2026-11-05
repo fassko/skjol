@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { assessEvidence, normaliseDigitrafficVisit, type DigitrafficVisit } from "../shared/evidence";
+import {
+  assessEvidence,
+  normaliseDigitrafficVisit,
+  normaliseVesselFinderPortCall,
+  normaliseVesselFinderRows,
+  parseVesselFinderTimestamp,
+  sourceIdHash,
+  toVesselFinderRow,
+  type DigitrafficVisit,
+} from "../shared/evidence";
 import { PRODUCTS, checkEligibility, isValidImo, locodeToBytes32, policyTerms } from "../shared/products";
+import { PORTS, portSource } from "../shared/ports";
 import { decodeArrivalReport, encodeArrivalReport } from "../shared/report";
-import { SCENARIOS, observationAt } from "../fixtures/scenarios";
+import { SCENARIOS, observationAt, observationEvidence } from "../fixtures/scenarios";
 
 const sec = (iso: string) => Math.floor(Date.parse(iso) / 1000);
 
@@ -26,7 +36,7 @@ function assessScenario(id: string, clockIndex = 0) {
   const { scenario, terms } = termsFor(id);
   const clock = scenario.evaluateAt[clockIndex];
   const obs = observationAt(scenario, clock);
-  const records = obs ? obs.visits.map((v) => normaliseDigitrafficVisit(v, obs.retrievedAt, "synthetic")) : [];
+  const records = obs ? observationEvidence(obs, "synthetic") : [];
   return assessEvidence(terms, records, sec(clock));
 }
 
@@ -53,6 +63,36 @@ describe("products & eligibility", () => {
     expect(
       checkEligibility({ ...s }, PRODUCTS["delay-standard-24h"], sec("2026-12-08T13:00:00Z"), { demoProductsEnabled: false }).map((i) => i.code),
     ).toContain("TOO_SOON");
+  });
+
+  it("offers Indian ports only where their arrival source is available", () => {
+    const s = { ...SCENARIOS[0].shipment, destinationLocode: "INNSA" };
+    const now = sec("2026-12-01T00:00:00Z");
+    const p = PRODUCTS["delay-standard-24h"];
+    expect(checkEligibility(s, p, now, { demoProductsEnabled: false })).toEqual([]);
+    expect(checkEligibility(s, p, now, { demoProductsEnabled: false, availableSources: ["digitraffic", "vesselfinder"] })).toEqual([]);
+    expect(checkEligibility(s, p, now, { demoProductsEnabled: false, availableSources: ["digitraffic"] }).map((i) => i.code)).toEqual(["PORT_DATA_UNAVAILABLE"]);
+    expect(checkEligibility(SCENARIOS[0].shipment, p, now, { demoProductsEnabled: false, availableSources: ["digitraffic"] })).toEqual([]);
+  });
+
+  it("maps every port to one source and keeps LOCODEs unique", () => {
+    expect(new Set(PORTS.map((p) => p.locode)).size).toBe(PORTS.length);
+    expect(portSource("FIHEL")?.key).toBe("digitraffic");
+    expect(portSource("INNSA")?.key).toBe("vesselfinder");
+    expect(portSource("INBOM")?.key).toBe("vesselfinder");
+    expect(portSource("DEHAM")).toBeNull();
+  });
+
+  it("keeps the Finnish evidence wording unchanged and words AIS evidence for Indian ports", () => {
+    const base = { product: PRODUCTS["delay-standard-24h"], vesselName: "X", vesselImo: "9700017", agreedArrivalDeadline: "2026-12-10T12:00:00Z" };
+    expect(policyTerms({ ...base, destinationLocode: "FIHEL" })).toContain(
+      "Evidence: official port-call arrival records (Fintraffic Digitraffic). Missing, stale or conflicting records keep the policy pending; they never close it automatically.",
+    );
+    const t = policyTerms({ ...base, destinationLocode: "INNSA" });
+    expect(t).toContain("at Nhava Sheva (JNPA, Navi Mumbai) (INNSA)");
+    expect(t).toMatch(/AIS position reports \(VesselFinder\)/);
+    expect(t).toMatch(/outer anchorage is not arrival/);
+    expect(t).toMatch(/Not covered: container unloading/);
   });
 
   it("states that vessel arrival is not delivery", () => {
@@ -112,6 +152,68 @@ describe("evidence assessment (synthetic scenarios)", () => {
   });
 });
 
+describe("VesselFinder port calls (Indian ports)", () => {
+  it("parses the documented timestamp format", () => {
+    expect(parseVesselFinderTimestamp("2017-08-06 20:57:34 UTC")).toBe("2017-08-06T20:57:34.000Z");
+    expect(parseVesselFinderTimestamp("06/08/2017 20:57")).toBeNull();
+  });
+
+  it("normalises arrivals only and treats IMO 0 as unknown", () => {
+    const pc = { MMSI: 207401000, IMO: 0, LOCODE: "innsa", EVENT: "ARRIVAL", TIMESTAMP: "2026-12-12 06:10:00 UTC" };
+    const e = normaliseVesselFinderPortCall(pc, "2026-12-12T08:00:00Z", "synthetic")!;
+    expect(e.source).toBe("vesselfinder.portcalls.v1");
+    expect(e.vesselImo).toBeNull();
+    expect(e.vesselMmsi).toBe("207401000");
+    expect(e.portLocode).toBe("INNSA");
+    expect(e.eventTimestamp).toBe("2026-12-12T06:10:00.000Z");
+    expect(e.latestEta).toBeNull();
+    expect(normaliseVesselFinderPortCall({ ...pc, EVENT: "DEPARTURE" }, "2026-12-12T08:00:00Z", "synthetic")).toBeNull();
+    // Digest ignores retrieval time.
+    expect(normaliseVesselFinderPortCall(pc, "2026-12-13T00:00:00Z", "synthetic")!.digest).toBe(e.digest);
+  });
+
+  it("round-trips synthetic replay rows without changing the digest", () => {
+    for (const pc of [
+      { IMO: 9700055, LOCODE: "INNSA", EVENT: "ARRIVAL", TIMESTAMP: "2026-12-12 06:10:00 UTC" },
+      { ID: 81234, MMSI: 419990005, IMO: 9700055, LOCODE: "INBOM", EVENT: "ARRIVAL", TIMESTAMP: "2026-12-12 06:10:00 UTC" },
+    ]) {
+      const e = normaliseVesselFinderPortCall(pc, "2026-12-12T08:00:00Z", "synthetic")!;
+      const back = normaliseVesselFinderRows([toVesselFinderRow(e)], e.retrievedAt, "synthetic");
+      expect(back).toHaveLength(1);
+      expect(back[0].digest).toBe(e.digest);
+    }
+  });
+
+  it("mumbai-late: pending before arrival, then a payout-eligible late arrival", () => {
+    const first = assessScenario("mumbai-late", 0);
+    expect(first.status).toBe("PENDING_NO_ARRIVAL");
+    expect(first.reasons).toContain("NO_PORT_CALL_FOR_VESSEL_AT_PORT");
+    const second = assessScenario("mumbai-late", 1);
+    expect(second.status).toBe("ARRIVAL_CONFIRMED");
+    expect(second.evidence?.source).toBe("vesselfinder.portcalls.v1");
+    expect(second.preview?.payoutEligible).toBe(true);
+    expect(second.preview!.delaySec).toBe(42 * 3600 + 10 * 60);
+  });
+
+  it("ignores arrivals at other ports returned by the IMO query", () => {
+    const { terms } = termsFor("mumbai-late");
+    const other = normaliseVesselFinderPortCall({ IMO: 9700055, LOCODE: "LKCMB", EVENT: "ARRIVAL", TIMESTAMP: "2026-12-08 10:00:00 UTC" }, "2026-12-12T08:00:00Z", "synthetic")!;
+    expect(assessEvidence(terms, [other], sec("2026-12-12T08:30:00Z")).status).toBe("PENDING_NO_ARRIVAL");
+  });
+
+  it("binds the VesselFinder source id into the onchain report", () => {
+    const s = SCENARIOS.find((x) => x.id === "mumbai-late")!;
+    const [ev] = observationEvidence(s.observations[1], "synthetic").filter((r) => r.portLocode === "INNSA");
+    const r = decodeArrivalReport(
+      encodeArrivalReport({ chainId: 5042002n, pool: "0x000000000000000000000000000000000000dEaD", policyId: `0x${"22".repeat(32)}`, vesselImo: 9700055, destinationLocode: "INNSA", evidence: ev }),
+    );
+    expect(r.sourceId).toBe(sourceIdHash("vesselfinder.portcalls.v1"));
+    expect(r.destinationLocode).toBe(locodeToBytes32("INNSA"));
+    expect(r.arrivalTime).toBe(BigInt(sec("2026-12-12T06:10:00Z")));
+    expect(r.observedAt).toBe(BigInt(sec("2026-12-12T08:00:00Z")));
+  });
+});
+
 describe("evidence assessment (recorded Digitraffic data, CC BY 4.0 Fintraffic)", () => {
   const recorded: DigitrafficVisit[] = JSON.parse(
     readFileSync(new URL("../fixtures/digitraffic/visits-departed-2026-11-05.json", import.meta.url), "utf8"),
@@ -156,7 +258,7 @@ describe("report encoding", () => {
   it("round-trips and binds chain, pool and policy", () => {
     const s = SCENARIOS.find((x) => x.id === "late")!;
     const obs = s.observations[0];
-    const ev = normaliseDigitrafficVisit(obs.visits[0], obs.retrievedAt, "synthetic");
+    const ev = normaliseDigitrafficVisit(obs.visits![0], obs.retrievedAt, "synthetic");
     const data = encodeArrivalReport({
       chainId: 5042002n,
       pool: "0x000000000000000000000000000000000000dEaD",

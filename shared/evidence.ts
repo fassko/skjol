@@ -1,11 +1,18 @@
-// Common typed arrival-evidence format, the Digitraffic v2 normaliser and the evidence
-// assessment rules. Pure (viem only) so it runs in Node, Vitest and the CRE WASM runtime.
+// Common typed arrival-evidence format, the per-source normalisers and the evidence assessment
+// rules. Pure (viem only) so it runs in Node, Vitest and the CRE WASM runtime.
 //
 // Digitraffic port-call v2 `/api/port-call/v2/visits` record fields observed 2026-11-05:
 // visitId, vesselId (= IMO), vesselName, shipCallSign, mmsi, portOfCall (UN/LOCODE), portName,
 // eta, etd, ata, atd, status ("Expected to Arrive" | "Arrived" | "Departed" | "Cancelled"),
 // updateTime, plus berth/area and tonnage fields.
+//
+// VesselFinder `GET /portcalls` (documented at api.vesselfinder.com/docs/portcalls.html, not yet
+// exercised with a live key): JSON array of { PORTCALL: { ID?, MMSI, IMO (0 = unknown), LOCODE,
+// EVENT ("ARRIVAL" | "DEPARTURE"), TIMESTAMP ("YYYY-MM-DD HH:MM:SS UTC"), PORT, COUNTRY } };
+// errors are returned as { error }. Events are derived from AIS positions, so there is no ETA or
+// "expected" status: absence of an arrival event is the only pending signal.
 import { keccak256, stringToHex } from "viem";
+import { EVIDENCE_SOURCES } from "./ports";
 
 export const EVIDENCE_SCHEMA = "skjol.arrival-evidence.v1" as const;
 
@@ -49,7 +56,23 @@ export interface ArrivalEvidence {
   digest: `0x${string}`;
 }
 
-export const DIGITRAFFIC_SOURCE = "digitraffic.port-call.v2";
+export const DIGITRAFFIC_SOURCE = EVIDENCE_SOURCES.digitraffic.id;
+export const VESSELFINDER_SOURCE = EVIDENCE_SOURCES.vesselfinder.id;
+
+export interface VesselFinderPortCall {
+  ID?: number;
+  MMSI?: number;
+  IMO?: number;
+  LOCODE: string;
+  EVENT: string;
+  TIMESTAMP: string;
+  PORT?: string;
+  COUNTRY?: string;
+}
+
+export interface VesselFinderRow {
+  PORTCALL: VesselFinderPortCall;
+}
 
 function canonical(e: Omit<ArrivalEvidence, "digest" | "retrievedAt">): string {
   // Fixed key order -> deterministic JSON across nodes and runtimes.
@@ -99,6 +122,65 @@ export function normaliseDigitrafficVisit(
     sourceUpdatedAt: String(v.updateTime),
   };
   return { ...base, retrievedAt, digest: evidenceDigest(base) };
+}
+
+/** "2026-12-12 03:00:00 UTC" -> "2026-12-12T03:00:00.000Z"; null when unparseable. */
+export function parseVesselFinderTimestamp(ts: string): string | null {
+  const m = String(ts).trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\s*UTC|Z)?$/);
+  if (!m) return null;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6])).toISOString();
+}
+
+/** Normalises a VesselFinder ARRIVAL event. Returns null for departures or unreadable timestamps. */
+export function normaliseVesselFinderPortCall(
+  pc: VesselFinderPortCall,
+  retrievedAt: string,
+  origin: EvidenceOrigin,
+): ArrivalEvidence | null {
+  if (String(pc.EVENT).toUpperCase() !== "ARRIVAL") return null;
+  const at = parseVesselFinderTimestamp(pc.TIMESTAMP);
+  if (!at) return null;
+  const imo = pc.IMO && /^\d{7}$/.test(String(pc.IMO)) ? String(pc.IMO) : null;
+  const mmsi = pc.MMSI ? String(pc.MMSI) : null;
+  const locode = String(pc.LOCODE).toUpperCase();
+  const base = {
+    schema: EVIDENCE_SCHEMA,
+    source: VESSELFINDER_SOURCE,
+    origin,
+    // `ID` is listed in the dataset docs but absent from their examples; fall back to a stable key.
+    sourceRecordId: pc.ID ? String(pc.ID) : `${locode}:${imo ?? mmsi ?? "unknown"}:${at}`,
+    vesselImo: imo,
+    vesselMmsi: mmsi,
+    vesselName: null,
+    portLocode: locode,
+    eventType: "VESSEL_ARRIVAL_AT_PORT" as const,
+    eventTimestamp: at,
+    latestEta: null,
+    sourceStatus: "Arrived",
+    sourceUpdatedAt: at,
+  };
+  return { ...base, retrievedAt, digest: evidenceDigest(base) };
+}
+
+export function normaliseVesselFinderRows(rows: VesselFinderRow[], retrievedAt: string, origin: EvidenceOrigin): ArrivalEvidence[] {
+  return rows
+    .map((r) => (r?.PORTCALL ? normaliseVesselFinderPortCall(r.PORTCALL, retrievedAt, origin) : null))
+    .filter((e): e is ArrivalEvidence => e !== null);
+}
+
+/** Inverse of normaliseVesselFinderPortCall for synthetic replay records (round-trips the digest). */
+export function toVesselFinderRow(e: ArrivalEvidence): VesselFinderRow {
+  const ts = (e.eventTimestamp ?? "").replace("T", " ").replace(/\.\d{3}Z$|Z$/, " UTC");
+  return {
+    PORTCALL: {
+      ...(/^\d+$/.test(e.sourceRecordId) ? { ID: Number(e.sourceRecordId) } : {}),
+      MMSI: e.vesselMmsi ? Number(e.vesselMmsi) : 0,
+      IMO: e.vesselImo ? Number(e.vesselImo) : 0,
+      LOCODE: e.portLocode,
+      EVENT: "ARRIVAL",
+      TIMESTAMP: ts,
+    },
+  };
 }
 
 // ------------------------------------------------------------------ assessment

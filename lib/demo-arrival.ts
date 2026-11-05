@@ -4,8 +4,9 @@ import { readPolicy } from "./chain";
 import { config } from "./config";
 import { HttpError } from "./session";
 import { store } from "./store";
-import { normaliseDigitrafficVisit, type DigitrafficVisit } from "../shared/evidence";
+import { normaliseDigitrafficVisit, normaliseVesselFinderPortCall, type DigitrafficVisit } from "../shared/evidence";
 import { PRODUCTS } from "../shared/products";
+import { portInfo } from "../shared/ports";
 
 // DEMO ONLY: records a SYNTHETIC port-call arrival for a policy on the 2-minute demo product, so the
 // CRE workflow (replay config) can settle it on Arc Testnet in real time. Never for real products.
@@ -21,17 +22,8 @@ export async function recordSyntheticArrival(policyId: Hex, minutesAfterDeadline
   if (ataMs > nowMs) throw new HttpError(409, `That arrival time is still in the future (${new Date(ataMs).toISOString()}). Try again later or choose an earlier time.`);
   if (ataMs < Number(onchain.earliestArrival) * 1000) throw new HttpError(422, "Arrival cannot be before the sailing date.");
   const ata = new Date(ataMs).toISOString();
-  const visit: DigitrafficVisit = {
-    visitId: `SYN-${p.portLocode}-${policyId.slice(2, 10)}`,
-    vesselId: String(p.vesselImo),
-    portOfCall: p.portLocode,
-    eta: new Date(p.deadlineSec * 1000).toISOString(),
-    ata,
-    status: "Arrived",
-    updateTime: ata,
-  };
   const retrievedAt = new Date(nowMs).toISOString();
-  const ev = normaliseDigitrafficVisit(visit, retrievedAt, "synthetic");
+  const ev = portInfo(p.portLocode)?.source === "vesselfinder" ? vesselFinderArrival(p.vesselImo, p.portLocode, ata, retrievedAt) : digitrafficArrival(policyId, p, ata, retrievedAt);
   const r = await store().putObservation({
     observationId: `syn-${ev.digest.slice(2, 26)}`,
     policyId,
@@ -46,4 +38,27 @@ export async function recordSyntheticArrival(policyId: Hex, minutesAfterDeadline
     record: JSON.stringify(ev),
   });
   return { observation: r.record.observationId, arkivKey: r.record.key, ata, retrievedAt, label: "synthetic" };
+}
+
+function digitrafficArrival(policyId: Hex, p: { portLocode: string; vesselImo: number; deadlineSec: number }, ata: string, retrievedAt: string) {
+  const visit: DigitrafficVisit = {
+    visitId: `SYN-${p.portLocode}-${policyId.slice(2, 10)}`,
+    vesselId: String(p.vesselImo),
+    portOfCall: p.portLocode,
+    eta: new Date(p.deadlineSec * 1000).toISOString(),
+    ata,
+    status: "Arrived",
+    updateTime: ata,
+  };
+  return normaliseDigitrafficVisit(visit, retrievedAt, "synthetic");
+}
+
+function vesselFinderArrival(vesselImo: number, locode: string, ata: string, retrievedAt: string) {
+  const ev = normaliseVesselFinderPortCall(
+    { IMO: vesselImo, LOCODE: locode, EVENT: "ARRIVAL", TIMESTAMP: ata.slice(0, 19).replace("T", " ") + " UTC" },
+    retrievedAt,
+    "synthetic",
+  );
+  if (!ev) throw new Error("Could not build the synthetic arrival record");
+  return ev;
 }

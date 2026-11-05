@@ -1,7 +1,7 @@
 import "server-only";
 import type { Hex } from "viem";
 import { publicClient, readPolicy, txLink } from "./chain";
-import { chainConfig } from "./config";
+import { chainConfig, poolByAddress } from "./config";
 import { blindTag, openJson } from "./crypto";
 import { getPolicyView } from "./insurance";
 import type { Session } from "./session";
@@ -44,6 +44,8 @@ function summary(p: Awaited<ReturnType<ReturnType<typeof store>["getPolicy"]>> &
     thresholdHours: p.thresholdSec / 3600,
     premium: formatUsdc(p.premiumUnits),
     payout: formatUsdc(p.payoutUnits),
+    currency: poolByAddress(p.pool)?.currency ?? "USDC",
+    pool: p.pool,
     lastEvaluation: p.lastEvaluation,
     purchaseTx: p.purchaseTx,
     purchaseTxUrl: txLink(p.purchaseTx),
@@ -62,7 +64,7 @@ export async function policyDetail(policyId: Hex, session: Session | null) {
     s.listObservations(policyId),
     s.listEvaluations(policyId),
     s.listChainEvents({ policyId }),
-    readPolicy(policyId).catch(() => null),
+    readPolicy(policyId, view.policy.pool as Hex).catch(() => null),
   ]);
   const c = chainConfig();
   const arkiv = await arkivRecords(
@@ -84,7 +86,7 @@ export async function policyDetail(policyId: Hex, session: Session | null) {
     owned: view.owned,
     arkiv,
     terms: view.priv?.terms ?? null,
-    chain: { id: c.id, name: c.name, pool: c.pool, explorer: c.explorer },
+    chain: { id: c.id, name: c.name, pool: view.policy.pool || c.pool, explorer: c.explorer },
     onchain: onchain
       ? {
           status: onchain.statusName,

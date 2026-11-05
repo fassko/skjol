@@ -1,8 +1,8 @@
 import { handle } from "@/lib/http";
 import { HttpError } from "@/lib/session";
-import { SCENARIOS, observationAt } from "@/fixtures/scenarios";
-import { assessEvidence, normaliseDigitrafficVisit } from "@/shared/evidence";
-import { PRODUCTS } from "@/shared/products";
+import { SCENARIOS, observationAt, observationEvidence } from "@/fixtures/scenarios";
+import { assessEvidence } from "@/shared/evidence";
+import { PRODUCTS, SUPPORTED_PORTS } from "@/shared/products";
 import { rulesExplanation } from "@/lib/ai/explain";
 import { config } from "@/lib/config";
 
@@ -14,11 +14,11 @@ export const POST = handle(async (req: Request) => {
   const p = PRODUCTS[s.productId];
   const sec = (iso: string) => Math.floor(Date.parse(iso) / 1000);
   const obs = observationAt(s, clock);
-  const records = obs ? obs.visits.map((v) => normaliseDigitrafficVisit(v, obs.retrievedAt, s.label)) : [];
+  const records = obs ? observationEvidence(obs, s.label) : [];
   const terms = { vesselImo: s.shipment.vesselImo, destinationLocode: s.shipment.destinationLocode, earliestArrival: sec(s.shipment.departureDate), agreedArrivalDeadline: sec(s.shipment.agreedArrivalDeadline), delayThresholdSec: p.delayThresholdSec };
   const a = assessEvidence(terms, records, sec(clock), config.maxEvidenceAgeSec());
   const explanation = rulesExplanation({
-    vesselName: s.shipment.vesselName, vesselImo: s.shipment.vesselImo, port: s.shipment.destinationLocode, agreedArrivalDeadline: s.shipment.agreedArrivalDeadline,
+    vesselName: s.shipment.vesselName, vesselImo: s.shipment.vesselImo, port: SUPPORTED_PORTS[s.shipment.destinationLocode] ?? s.shipment.destinationLocode, agreedArrivalDeadline: s.shipment.agreedArrivalDeadline,
     thresholdHours: p.delayThresholdSec / 3600, assessment: a.status, reasons: a.reasons, recordedArrival: a.evidence?.eventTimestamp ?? null, latestEta: a.latestEta,
     delayHours: a.preview ? a.preview.delaySec / 3600 : null, payoutEligible: a.preview?.payoutEligible ?? null, payoutUsdc: "5.00", dataLabel: "synthetic",
   });
