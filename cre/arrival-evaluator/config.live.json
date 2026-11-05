@@ -1,8 +1,9 @@
 {
   "schedule": "0 */15 * * * *",
   "chainName": "arc-testnet",
-  "poolAddress": "0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4",
+  "poolAddress": "0xa7505609b6c380c3f87940db151ef4a5437f70c0",
   "poolAddresses": [
+    "0xa7505609b6c380c3f87940db151ef4a5437f70c0",
     "0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4",
     "0xf9a17a1b28eecaa8ef15cae0473c39a9c9e91301",
     "0x3a68001a32a0a5d174b3ed08ba58d42dd70daa84"

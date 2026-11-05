@@ -9,7 +9,7 @@ const steps: Step[] = [
     icon: Landmark,
     who: 'Funders',
     title: 'Deposit USDC into the pool',
-    text: 'Funders receive shares. Premiums raise the share price and payouts lower it.',
+    text: 'Funders receive shares. Premiums raise the share price and payouts lower it. Exits are priced as if every open policy pays out.',
   },
   {
     icon: FileSignature,
@@ -80,7 +80,10 @@ export function HowItWorks() {
                 <span className="label !text-[var(--success)]">5a. More than 24 hours late</span>
               </div>
               <div className="display mt-1 text-lg font-semibold">The pool pays the importer</div>
-              <p className="mt-1 text-sm text-[var(--muted)]">The fixed payout is sent to the importer&apos;s wallet.</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                The fixed payout is sent to the importer&apos;s wallet. If the token refuses the transfer (for example a blocked
+                address), the payout is kept for that wallet and shown as a Claim payout button on the Pool page.
+              </p>
             </div>
             <div className="rounded-2xl border border-[var(--border-strong)] p-4">
               <div className="flex items-center gap-2 text-[var(--ink-2)]">
@@ -105,6 +108,20 @@ export function HowItWorks() {
           <li>Exactly 24 hours late does not pay. One second more does.</li>
           <li>Container discharge, customs release and delivery are not covered.</li>
           <li>If no evidence ever arrives, the policy stays active until the pool owner resolves it after the review period.</li>
+        </ul>
+      </Card>
+
+      <Card>
+        <div className="flex items-center gap-2">
+          <Landmark size={20} aria-hidden />
+          <h3 className="display text-xl font-semibold">How funders get paid out</h3>
+        </div>
+        <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-[var(--ink-2)]">
+          <li>Deposits buy shares at the pool&apos;s full asset value, so nobody can buy in just before reserved capital is released.</li>
+          <li>Exits are priced as if every open policy pays out. A funder cannot leave early to dodge a payout.</li>
+          <li>While any policy is open, a minimum of 1 share stays in the pool, so reserved capital always has a funder to return to.</li>
+          <li>When a policy closes with no payout, its reserve goes back to the funders who stayed.</li>
+          <li>The first deposit into an empty pool must be at least 1 USDC, and a deposit too small to mint any shares is rejected.</li>
         </ul>
       </Card>
     </div>

@@ -9,9 +9,9 @@ export const CHAIN_ID = arcTestnet.id
  * ShipmentDelayPool. Leave POOL_ADDRESS undefined until then: the app shows a
  * "not deployed yet" state instead of guessing.
  */
-export const POOL_ADDRESS: Address | undefined = '0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4'
+export const POOL_ADDRESS: Address | undefined = '0xa7505609b6c380c3f87940db151ef4a5437f70c0'
 /** Block the pool was deployed at. Policy history is read from here, never from block 0. */
-export const POOL_DEPLOY_BLOCK: bigint | undefined = 70866278n
+export const POOL_DEPLOY_BLOCK: bigint | undefined = 70874549n
 
 export const SKJOL_APP_URL = 'https://skjol-insurance.vercel.app'
 
@@ -37,7 +37,13 @@ export const poolAbi = parseAbi([
   'function totalAssets() view returns (uint256)',
   'function totalSupply() view returns (uint256)',
   'function balanceOf(address owner) view returns (uint256)',
-  'function convertToAssets(uint256 shares) view returns (uint256)',
+  'function previewRedeem(uint256 shares) view returns (uint256)',
+  'function exitValue(uint256 shares) view returns (uint256)',
+  'function owedPayout(address account) view returns (uint256)',
+  'function totalOwed() view returns (uint256)',
+  'function claimPayout()',
+  'function MIN_LIVE_SHARES() view returns (uint256)',
+  'function acceptOwnership()',
   'function maxRedeem(address owner) view returns (uint256)',
   'function maxWithdraw(address owner) view returns (uint256)',
   'function quoteSigner() view returns (address)',
@@ -57,6 +63,9 @@ export const poolAbi = parseAbi([
   'error InvalidQuoteSignature()',
   'error InsufficientCollateral(uint256 available, uint256 required)',
   'error PurchasesPaused()',
+  'error NothingOwed()',
+  'error ZeroShares()',
+  'error FirstDepositTooSmall(uint256 assets, uint256 minimum)',
   'error ERC4626ExceededMaxDeposit(address receiver, uint256 assets, uint256 max)',
   'error ERC4626ExceededMaxRedeem(address owner, uint256 shares, uint256 max)',
   'error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)',

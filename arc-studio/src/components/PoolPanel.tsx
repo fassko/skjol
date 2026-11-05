@@ -26,6 +26,7 @@ export function PoolPanel() {
   const approveTx = useTx()
   const depositTx = useTx()
   const redeemTx = useTx()
+  const claimTx = useTx()
   const [depositText, setDepositText] = useState('')
   const [redeemText, setRedeemText] = useState('')
 
@@ -52,6 +53,12 @@ export function PoolPanel() {
     }
   }
 
+  async function claim() {
+    if (!pool) return
+    const ok = await claimTx.run({ address: pool, abi: poolAbi, functionName: 'claimPayout', args: [] })
+    if (ok) void refetch()
+  }
+
   async function redeem() {
     if (!pool || redeemAmount === undefined || !data || !address) return
     // Convert the USDC the funder asked for into shares; redeeming the full redeemable amount uses all redeemable shares.
@@ -67,7 +74,7 @@ export function PoolPanel() {
     }
   }
 
-  const sharePriceText = data && data.totalSupply > 0n ? usdNumber(data.sharePrice, 4) : '1.0000'
+  const sharePriceText = data && data.totalSupply > 0n ? usdNumber(data.exitPrice, 4) : '1.0000'
 
   return (
     <div className="space-y-5">
@@ -88,14 +95,36 @@ export function PoolPanel() {
             <Stat label="Free capital" value={data ? usd(data.freeCapital) : '...'} hint="Available to withdraw" />
             <Stat label="Total reserved" value={data ? usd(data.totalReserved) : '...'} hint="Held for active payouts" />
             <Stat label="Total assets" value={data ? usd(data.totalAssets) : '...'} />
-            <Stat label="Share price" value={data ? `${sharePriceText} USDC` : '...'} />
+            <Stat label="Exit price per share" value={data ? `${sharePriceText} USDC` : '...'} hint="If every open policy pays" />
           </div>
         )}
         <p className="mt-4 text-sm text-[var(--ink-2)] text-pretty">
           Reserved capital cannot be withdrawn because it is already promised to importers with active cover, and it is
           released back to funders only when a policy settles.
         </p>
+        <p className="mt-2 text-sm text-[var(--ink-2)] text-pretty">
+          Exits are priced as if every open policy pays out, and a minimum of{' '}
+          {data ? usdNumber(data.minLiveShares, 0) : '1'} share stays in the pool while policies are open.
+        </p>
       </Card>
+
+      {pool && isConnected && data && data.owedPayout > 0n && (
+        <Card>
+          <h3 className="display text-xl font-semibold">Payout waiting for you</h3>
+          <p className="mt-2 text-sm text-[var(--muted)] text-pretty">
+            The pool could not send {usd(data.owedPayout)} to this wallet when your policy paid out, for example because the
+            token issuer blocked the address. It is held for you and can be claimed to this same wallet.
+          </p>
+          <button
+            className="btn btn-primary mt-4 w-full"
+            disabled={claimTx.state.phase === 'wallet' || claimTx.state.phase === 'confirming'}
+            onClick={() => void claim()}
+          >
+            Claim payout
+          </button>
+          <TxStatus state={claimTx.state} successText="Payout claimed." />
+        </Card>
+      )}
 
       {pool && (
         <Card>
@@ -107,9 +136,10 @@ export function PoolPanel() {
             </div>
           ) : (
             <>
-              <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Stat label="Your shares" value={data ? usdNumber(data.shares, 4) : '...'} />
-                <Stat label="Redeemable now" value={data ? usd(data.redeemableUsdc) : '...'} hint="Limited by free capital" />
+                <Stat label="Exit value" value={data ? usd(data.exitValue) : '...'} hint="What your shares receive on exit" />
+                <Stat label="Redeemable now" value={data ? usd(data.redeemableUsdc) : '...'} hint="After reserves and the minimum share" />
               </div>
 
               <div className="mt-6 grid gap-6 md:grid-cols-2">

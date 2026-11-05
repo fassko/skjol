@@ -46,6 +46,10 @@ await read<bigint>("MIN_LIVE_SHARES").catch(() => {
   throw new Error("Pool has no MIN_LIVE_SHARES(): it is not the fixed contract. Make Studio deploy arc-studio/contracts/ShipmentDelayPool.sol.");
 });
 if (getAddress(await read<Hex>("asset")) !== USDC) throw new Error("Pool asset is not Arc USDC.");
+// First funding must hit an empty pool: a pre-funding donation would skew the first share price.
+if ((await read<bigint>("totalSupply")) === 0n && (await read<bigint>("totalAssets")) !== 0n) {
+  throw new Error("Pool has assets but no shares (someone donated before the first deposit). Do not fund it; redeploy.");
+}
 
 if (getAddress(await read<Hex>("owner")) !== me.address) {
   const pending = await read<Hex>("pendingOwner", ownable2);

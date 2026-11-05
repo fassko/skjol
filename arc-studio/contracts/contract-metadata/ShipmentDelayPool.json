@@ -1,14 +1,21 @@
 {
-  "contractAddress": "0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4",
+  "contractAddress": "0xa7505609b6c380c3f87940db151ef4a5437f70c0",
   "network": "ARC-TESTNET",
   "deployerWalletId": "4963feec-015f-5129-a1dc-d11871c20281",
   "deployerAddress": "0xfddf934a32a0cb33e7181454b9f2501f8baff7a1",
   "contract_code_path": "/home/user/app/contracts/ShipmentDelayPool.sol",
   "contract_compiled_code_path": "/home/user/app/contracts/out/ShipmentDelayPool.sol/ShipmentDelayPool.json",
   "contract_network_and_links": {
-    "Arc Testnet": "https://explorer.testnet.arc.io/address/0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4"
+    "Arc Testnet": "https://explorer.testnet.arc.io/address/0xa7505609b6c380c3f87940db151ef4a5437f70c0"
   },
   "contract_deployments": [
+    {
+      "chain": "Arc Testnet",
+      "address": "0xa7505609b6c380c3f87940db151ef4a5437f70c0",
+      "explorerUrl": "https://explorer.testnet.arc.io/address/0xa7505609b6c380c3f87940db151ef4a5437f70c0",
+      "txHash": "0xe55df41f51e800464ec1b2d9658e4130015679654f3f442415eaaea9ac90064a",
+      "deployedAt": "2026-11-05T14:38:58.604Z"
+    },
     {
       "chain": "Arc Testnet",
       "address": "0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4",
