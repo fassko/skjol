@@ -17,6 +17,7 @@ function Addr({ explorer, address }: { explorer: string | null | undefined; addr
 }
 
 function ArchitectureDiagram() {
+  const stroke = "#7a7368";
   return (
     <Section title="System diagram" aside={<State kind="live">End-to-end flow</State>}>
       <p className="text-sm text-ink-2 mb-4 max-w-3xl">
@@ -24,64 +25,71 @@ function ArchitectureDiagram() {
         submits arrival evidence, and payouts leave the same contract. Documents stay encrypted on Swarm with pointers on Arkiv.
       </p>
       <div className="overflow-x-auto -mx-1 px-1">
-        <svg viewBox="0 0 920 420" className="w-full min-w-[640px] h-auto text-ink" role="img" aria-label="Skjol architecture diagram">
+        <svg viewBox="0 0 920 360" className="w-full min-w-[640px] h-auto text-ink" role="img" aria-label="Skjol architecture diagram">
           <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" className="text-muted" />
+            <marker id="skjol-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L10 5 L0 10 z" fill={stroke} />
             </marker>
           </defs>
 
-          {/* Funder */}
-          <rect x="20" y="40" width="150" height="64" rx="10" className="fill-[var(--paper-2,#f3f0ea)] stroke-[var(--line,#d9d2c5)]" strokeWidth="1.5" />
-          <text x="95" y="66" textAnchor="middle" className="fill-current" style={{ fontSize: 13, fontWeight: 600 }}>Capital funder</text>
-          <text x="95" y="86" textAnchor="middle" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 11 }}>deposits USDC / EURC</text>
+          {/* Boxes */}
+          <rect x="24" y="28" width="148" height="56" rx="10" fill="#f3f0ea" stroke="#d9d2c5" strokeWidth="1.5" />
+          <text x="98" y="52" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="600">Capital funder</text>
+          <text x="98" y="70" textAnchor="middle" fill={stroke} fontSize="11">deposits USDC / EURC</text>
 
-          {/* Importer */}
-          <rect x="20" y="180" width="150" height="64" rx="10" className="fill-[var(--paper-2,#f3f0ea)] stroke-[var(--line,#d9d2c5)]" strokeWidth="1.5" />
-          <text x="95" y="206" textAnchor="middle" className="fill-current" style={{ fontSize: 13, fontWeight: 600 }}>Importer</text>
-          <text x="95" y="226" textAnchor="middle" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 11 }}>buys delay cover</text>
+          <rect x="250" y="20" width="200" height="40" rx="10" fill="#f3f0ea" stroke="#c45c26" strokeWidth="1.5" />
+          <text x="350" y="45" textAnchor="middle" fill="currentColor" fontSize="12" fontWeight="600">Uniswap V2 · share ↔ token</text>
 
-          {/* Pool */}
-          <rect x="250" y="100" width="200" height="100" rx="12" className="fill-[var(--sea-soft,#e6f0f0)] stroke-[var(--sea,#1f6f6a)]" strokeWidth="2" />
-          <text x="350" y="132" textAnchor="middle" className="fill-current" style={{ fontSize: 14, fontWeight: 700 }}>ShipmentDelayPool</text>
-          <text x="350" y="152" textAnchor="middle" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 11 }}>shared collateral · ERC-4626 shares</text>
-          <text x="350" y="172" textAnchor="middle" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 11 }}>reserve payout · settle claims</text>
+          <rect x="250" y="100" width="200" height="88" rx="12" fill="#e6f0f0" stroke="#1f6f6a" strokeWidth="2" />
+          <text x="350" y="130" textAnchor="middle" fill="currentColor" fontSize="14" fontWeight="700">ShipmentDelayPool</text>
+          <text x="350" y="150" textAnchor="middle" fill={stroke} fontSize="11">shared collateral · ERC-4626 shares</text>
+          <text x="350" y="168" textAnchor="middle" fill={stroke} fontSize="11">reserve payout · settle claims</text>
 
-          {/* Uniswap */}
-          <rect x="250" y="40" width="200" height="44" rx="10" className="fill-[var(--paper-2,#f3f0ea)] stroke-[var(--signal,#c45c26)]" strokeWidth="1.5" />
-          <text x="350" y="67" textAnchor="middle" className="fill-current" style={{ fontSize: 12, fontWeight: 600 }}>Uniswap V2 · share ↔ token</text>
+          <rect x="24" y="160" width="148" height="56" rx="10" fill="#f3f0ea" stroke="#d9d2c5" strokeWidth="1.5" />
+          <text x="98" y="184" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="600">Importer</text>
+          <text x="98" y="202" textAnchor="middle" fill={stroke} fontSize="11">buys delay cover</text>
 
-          {/* CRE */}
-          <rect x="530" y="100" width="170" height="100" rx="12" className="fill-[var(--paper-2,#f3f0ea)] stroke-[var(--line,#d9d2c5)]" strokeWidth="1.5" />
-          <text x="615" y="132" textAnchor="middle" className="fill-current" style={{ fontSize: 13, fontWeight: 600 }}>Chainlink CRE</text>
-          <text x="615" y="152" textAnchor="middle" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 11 }}>port-call evidence</text>
-          <text x="615" y="172" textAnchor="middle" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 11 }}>Digitraffic / VesselFinder</text>
+          <rect x="540" y="100" width="160" height="88" rx="12" fill="#f3f0ea" stroke="#d9d2c5" strokeWidth="1.5" />
+          <text x="620" y="130" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="600">Chainlink CRE</text>
+          <text x="620" y="150" textAnchor="middle" fill={stroke} fontSize="11">port-call evidence</text>
+          <text x="620" y="168" textAnchor="middle" fill={stroke} fontSize="11">Digitraffic / VesselFinder</text>
 
-          {/* Arkiv / Swarm */}
-          <rect x="750" y="40" width="150" height="64" rx="10" className="fill-[var(--paper-2,#f3f0ea)] stroke-[var(--line,#d9d2c5)]" strokeWidth="1.5" />
-          <text x="825" y="66" textAnchor="middle" className="fill-current" style={{ fontSize: 13, fontWeight: 600 }}>Arkiv</text>
-          <text x="825" y="86" textAnchor="middle" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 11 }}>policies · events</text>
+          <rect x="760" y="28" width="136" height="56" rx="10" fill="#f3f0ea" stroke="#d9d2c5" strokeWidth="1.5" />
+          <text x="828" y="52" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="600">Arkiv</text>
+          <text x="828" y="70" textAnchor="middle" fill={stroke} fontSize="11">policies · events</text>
 
-          <rect x="750" y="180" width="150" height="64" rx="10" className="fill-[var(--paper-2,#f3f0ea)] stroke-[var(--line,#d9d2c5)]" strokeWidth="1.5" />
-          <text x="825" y="206" textAnchor="middle" className="fill-current" style={{ fontSize: 13, fontWeight: 600 }}>Swarm</text>
-          <text x="825" y="226" textAnchor="middle" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 11 }}>encrypted BoL</text>
+          <rect x="760" y="160" width="136" height="56" rx="10" fill="#f3f0ea" stroke="#d9d2c5" strokeWidth="1.5" />
+          <text x="828" y="184" textAnchor="middle" fill="currentColor" fontSize="13" fontWeight="600">Swarm</text>
+          <text x="828" y="202" textAnchor="middle" fill={stroke} fontSize="11">encrypted BoL</text>
 
-          {/* Payout */}
-          <rect x="250" y="280" width="200" height="52" rx="10" className="fill-[var(--paper-2,#f3f0ea)] stroke-[var(--ok,#2f7d4a)]" strokeWidth="1.5" />
-          <text x="350" y="311" textAnchor="middle" className="fill-current" style={{ fontSize: 12, fontWeight: 600 }}>Fixed payout → wallet</text>
+          <rect x="250" y="260" width="200" height="44" rx="10" fill="#f3f0ea" stroke="#2f7d4a" strokeWidth="1.5" />
+          <text x="350" y="287" textAnchor="middle" fill="currentColor" fontSize="12" fontWeight="600">Fixed payout → wallet</text>
 
-          {/* Arrows */}
-          <path d="M170 72 H250" fill="none" stroke="currentColor" className="text-muted" strokeWidth="1.5" markerEnd="url(#arrow)" />
-          <path d="M170 212 H250" fill="none" stroke="currentColor" className="text-muted" strokeWidth="1.5" markerEnd="url(#arrow)" />
-          <path d="M350 100 V84" fill="none" stroke="currentColor" className="text-muted" strokeWidth="1.5" markerEnd="url(#arrow)" />
-          <path d="M450 150 H530" fill="none" stroke="currentColor" className="text-muted" strokeWidth="1.5" markerEnd="url(#arrow)" />
-          <path d="M615 100 V72 H750" fill="none" stroke="currentColor" className="text-muted" strokeWidth="1.5" markerEnd="url(#arrow)" />
-          <path d="M170 244 C220 300 280 300 350 280" fill="none" stroke="currentColor" className="text-muted" strokeWidth="1.5" markerEnd="url(#arrow)" />
-          <path d="M450 200 C520 240 680 240 750 212" fill="none" stroke="currentColor" className="text-muted" strokeWidth="1.5" markerEnd="url(#arrow)" />
+          {/* Orthogonal arrows — ends sit on box edges */}
+          {/* funder → pool (mint shares) */}
+          <path d="M172 56 H210 V144 H250" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
+          {/* importer → pool (premium) */}
+          <path d="M172 188 H210 V160 H250" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
+          {/* pool ↔ uniswap */}
+          <path d="M350 100 V60" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
+          {/* pool → CRE (report) */}
+          <path d="M450 144 H540" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
+          {/* CRE → Arkiv */}
+          <path d="M620 100 V56 H760" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
+          {/* importer → Swarm (BoL) */}
+          <path d="M172 204 H200 V230 H740 V188 H760" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
+          {/* pool → payout */}
+          <path d="M350 188 V260" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
+          {/* Swarm → Arkiv (reference) */}
+          <path d="M828 160 V84" fill="none" stroke={stroke} strokeWidth="1.5" markerEnd="url(#skjol-arrow)" />
 
-          <text x="200" y="64" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 10 }}>mint shares</text>
-          <text x="190" y="204" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 10 }}>premium</text>
-          <text x="480" y="140" className="fill-[var(--muted,#7a7368)]" style={{ fontSize: 10 }}>report</text>
+          <text x="186" y="118" fill={stroke} fontSize="10">mint shares</text>
+          <text x="186" y="176" fill={stroke} fontSize="10">premium</text>
+          <text x="478" y="136" fill={stroke} fontSize="10">report</text>
+          <text x="360" y="90" fill={stroke} fontSize="10">trade</text>
+          <text x="360" y="248" fill={stroke} fontSize="10">claim</text>
+          <text x="420" y="246" fill={stroke} fontSize="10">BoL → Swarm</text>
+          <text x="838" y="124" fill={stroke} fontSize="10">ref</text>
         </svg>
       </div>
       <p className="text-xs text-muted mt-3">

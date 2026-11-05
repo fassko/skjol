@@ -127,4 +127,4 @@ Integrations is read from this deployment. Swarm is the public gateway, postage 
 
 ## What to leave out
 
-The freight agent, the EURC bridge, and the demo-scenario clock are separate cuts. This video is the cover path plus the two links a judge can open.
+The freight agent and the EURC bridge are separate cuts. This video is the cover path plus the two links a judge can open.

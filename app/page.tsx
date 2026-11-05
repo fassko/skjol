@@ -37,9 +37,6 @@ export default function Home() {
             <Link href="/cover" className="btn btn-signal">
               Get cover
             </Link>
-            <Link href="/demo" className="btn btn-ghost">
-              Watch the demo scenarios
-            </Link>
           </div>
         </div>
         <div className="card p-6 space-y-4">

@@ -13,7 +13,6 @@ Yes, on the deployed Skjol app:
 1. `/cover` — connect wallet, upload a sample BoL, see Arkiv entity + Swarm ciphertext links.
 2. `/integrations` — run the Swarm roundtrip and inspect Arkiv writer status.
 3. `/policies/{id}` — read Arkiv records and document storage for a purchased cover.
-4. `/demo` — labelled scenarios without writing customer data.
 
 ## After Mumbai
 
