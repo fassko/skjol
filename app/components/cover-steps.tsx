@@ -8,6 +8,8 @@ import { api, fmtDate, short } from "./api";
 import { useSession } from "./session";
 import { DataLabel, ErrorNote, ExtLink, Spinner, TestFunds } from "./ui";
 import { arcTestnet } from "./wagmi";
+import { BridgeEurc } from "./bridge-eurc";
+import { EVIDENCE_SOURCES, PORTS, PORT_COUNTRIES, portInfo, type PortCountry } from "@/shared/ports";
 
 // ------------------------------------------------------------------ types
 export interface Field { value: string | null; sourceExcerpt: string | null; page: number | null; status: "found" | "missing" | "conflicting" | "unverified" }
@@ -22,11 +24,13 @@ export interface UploadResult { shipmentId: string; extraction: Extraction; stor
 export interface Offer {
   quoteId: Hex; policyId: Hex; productId: string; productName: string; premium: string; payout: string;
   thresholdHours: number; agreedArrivalDeadline: string; purchaseCutoff: string; quoteExpiry: string; terms: string;
-  chainId: number; pool: Hex; usdc: Hex; message: Record<string, string | number>; signature: Hex; demoOnly: boolean;
+  chainId: number; pool: Hex; currency: "USDC" | "EURC"; token: Hex; message: Record<string, string | number>; signature: Hex; demoOnly: boolean;
 }
+type QuoteResponse = { offers: Offer[]; declined: { productId: string; reasons: string[] }[]; currencies: ("USDC" | "EURC")[] };
 
 export const SAMPLES = [
   { file: "bl-baltic-wren.txt", label: "Bill of lading — Baltic Wren to Helsinki" },
+  { file: "bl-indus-heron.txt", label: "Bill of lading — Indus Heron to Nhava Sheva (Mumbai)" },
   { file: "bl-nordic-tern.txt", label: "Sea waybill — Nordic Tern to Kotka (contains a prompt-injection line)" },
   { file: "bl-aurora-skerry.txt", label: "Booking confirmation — Aurora Skerry to Turku" },
   { file: "bl-kestrel-bay.txt", label: "Bill of lading — Kestrel Bay to Rauma" },
@@ -131,7 +135,7 @@ const LABELS: Record<string, string> = {
   vesselMmsi: "MMSI (optional)",
   voyageRef: "Voyage reference",
   originPort: "Port of loading",
-  destinationLocode: "Destination port code (UN/LOCODE)",
+  destinationLocode: "Destination port",
   departureDate: "Departure / sailing date (UTC)",
   agreedArrivalDeadline: "Agreed arrival deadline (UTC)",
 };
@@ -198,12 +202,16 @@ export function ReviewForm({ shipmentId, extraction, onConfirmed }: { shipmentId
                 {LABELS[k]}
                 {f && f.status !== "found" && <span className={`tag !text-[10px] ${f.status === "missing" ? "text-muted" : "text-warn"}`}>{f.status}</span>}
               </label>
-              <input
-                className="input mt-1"
-                type={isDate ? "datetime-local" : "text"}
-                value={vals[k] ?? ""}
-                onChange={(e) => setVals({ ...vals, [k]: e.target.value })}
-              />
+              {k === "destinationLocode" ? (
+                <PortSelect value={vals[k] ?? ""} onChange={(v) => setVals({ ...vals, [k]: v })} />
+              ) : (
+                <input
+                  className="input mt-1"
+                  type={isDate ? "datetime-local" : "text"}
+                  value={vals[k] ?? ""}
+                  onChange={(e) => setVals({ ...vals, [k]: e.target.value })}
+                />
+              )}
               {f?.sourceExcerpt && (
                 <div className="text-[11px] text-muted mt-1 mono truncate" title={f.sourceExcerpt}>
                   p.{f.page ?? "?"}: “{f.sourceExcerpt}”
@@ -232,21 +240,55 @@ export function ReviewForm({ shipmentId, extraction, onConfirmed }: { shipmentId
   );
 }
 
+function PortSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const selected = portInfo(value);
+  const source = selected ? EVIDENCE_SOURCES[selected.source] : null;
+  return (
+    <>
+      <select className="input mt-1" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Choose a port…</option>
+        {value && !selected && <option value={value}>{value} (not covered)</option>}
+        {(Object.keys(PORT_COUNTRIES) as PortCountry[]).map((c) => (
+          <optgroup key={c} label={PORT_COUNTRIES[c]}>
+            {PORTS.filter((p) => p.country === c).map((p) => (
+              <option key={p.locode} value={p.locode}>
+                {p.name} ({p.locode})
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      {source && <div className="text-[11px] text-muted mt-1">Arrival data: {source.description.toLowerCase()} ({source.name}).</div>}
+    </>
+  );
+}
+
 // ------------------------------------------------------------------ quotes
 export function QuoteCards({ shipmentId, onChoose }: { shipmentId: string; onChoose: (o: Offer) => void }) {
-  const [state, setState] = useState<{ offers: Offer[]; declined: { productId: string; reasons: string[] }[] } | null>(null);
+  const [state, setState] = useState<QuoteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const requested = useRef<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [currency, setCurrency] = useState<"USDC" | "EURC">("USDC");
   useEffect(() => {
-    const key = `${shipmentId}#${attempt}`;
+    const key = `${shipmentId}#${currency}#${attempt}`;
     if (requested.current === key) return; // issue quotes once per attempt (Strict Mode runs effects twice)
     requested.current = key;
     setError(null);
-    api<{ offers: Offer[]; declined: { productId: string; reasons: string[] }[] }>(`/api/shipments/${shipmentId}/quotes`, { method: "POST" })
+    setState(null);
+    api<QuoteResponse>(`/api/shipments/${shipmentId}/quotes?currency=${currency}`, { method: "POST" })
       .then(setState)
       .catch((e) => setError(e.message));
-  }, [shipmentId, attempt]);
+  }, [shipmentId, currency, attempt]);
+  const toggle = state && state.currencies.length > 1 && (
+    <div className="inline-flex rounded-full border border-line bg-[#fffdf8] p-1 text-sm mb-4">
+      {state.currencies.map((c) => (
+        <button key={c} className={`px-3 py-1 rounded-full ${currency === c ? "bg-ink text-paper" : ""}`} onClick={() => setCurrency(c)}>
+          {c === "EURC" ? "Pay in euros (EURC)" : "Pay in dollars (USDC)"}
+        </button>
+      ))}
+    </div>
+  );
   if (error)
     return (
       <div className="space-y-3">
@@ -260,15 +302,19 @@ export function QuoteCards({ shipmentId, onChoose }: { shipmentId: string; onCho
   if (!state.offers.length)
     return (
       <div className="text-sm space-y-2">
+        {toggle}
         <p>We can’t offer cover for this shipment:</p>
         <ul className="list-disc pl-5 text-ink-2">{[...new Set(state.declined.flatMap((d) => d.reasons))].map((r) => <li key={r}>{r}</li>)}</ul>
       </div>
     );
   return (
-    <div className="grid md:grid-cols-2 gap-4">
-      {state.offers.map((o) => (
-        <OfferCard key={o.quoteId} o={o} onChoose={() => onChoose(o)} />
-      ))}
+    <div>
+      {toggle}
+      <div className="grid md:grid-cols-2 gap-4">
+        {state.offers.map((o) => (
+          <OfferCard key={o.quoteId} o={o} onChoose={() => onChoose(o)} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -278,15 +324,15 @@ export function OfferCard({ o, onChoose }: { o: Offer; onChoose?: () => void }) 
     <div className="card p-5 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div className="font-display text-lg font-semibold">{o.productName}</div>
-        <TestFunds />
+        <TestFunds currency={o.currency} />
       </div>
       <div className="flex items-baseline gap-2">
         <span className="font-display text-3xl font-semibold">{o.payout}</span>
-        <span className="text-sm text-ink-2">USDC paid if the vessel arrives more than {o.thresholdHours >= 1 ? `${o.thresholdHours} h` : `${Math.round(o.thresholdHours * 60)} min`} late</span>
+        <span className="text-sm text-ink-2">{o.currency} paid if the vessel arrives more than {o.thresholdHours >= 1 ? `${o.thresholdHours} h` : `${Math.round(o.thresholdHours * 60)} min`} late</span>
       </div>
       <dl className="text-sm grid grid-cols-2 gap-y-1">
         <dt className="text-muted">Premium</dt>
-        <dd className="font-semibold">{o.premium} USDC</dd>
+        <dd className="font-semibold">{o.premium} {o.currency}</dd>
         <dt className="text-muted">Agreed deadline</dt>
         <dd>{fmtDate(o.agreedArrivalDeadline)}</dd>
         <dt className="text-muted">Buy before</dt>
@@ -333,7 +379,7 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
   const onArc = chainId === arcTestnet.id;
   const sameWallet = isConnected && address?.toLowerCase() === session?.address.toLowerCase();
   const allowance = useReadContract({
-    address: offer.usdc,
+    address: offer.token,
     abi: erc20Abi,
     functionName: "allowance",
     args: session ? [session.address, offer.pool] : undefined,
@@ -369,8 +415,8 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
     });
 
   const approve = () =>
-    guarded("Approve the test USDC premium in your wallet…", async () => {
-      const hash = await writeContractAsync({ address: offer.usdc, abi: erc20Abi, functionName: "approve", args: [offer.pool, args.premium], chainId: arcTestnet.id });
+    guarded(`Approve the test ${offer.currency} premium in your wallet…`, async () => {
+      const hash = await writeContractAsync({ address: offer.token, abi: erc20Abi, functionName: "approve", args: [offer.pool, args.premium], chainId: arcTestnet.id });
       setStep("Waiting for the approval to confirm…");
       await client!.waitForTransactionReceipt({ hash });
       await allowance.refetch();
@@ -411,7 +457,7 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
       <div className="flex flex-wrap gap-2">
         {session?.demo ? (
           <button className="btn btn-signal" disabled={!agree || !!step} onClick={buyWithDemo}>
-            Buy with demo wallet ({offer.premium} test USDC)
+            Buy with demo wallet ({offer.premium} test {offer.currency})
           </button>
         ) : (
           <div className="w-full space-y-2">
@@ -441,7 +487,7 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
               </li>
               <li>
                 <button className={`btn ${approved ? "btn-ghost" : "btn-primary"}`} disabled={!agree || !!step || !onArc || approved} onClick={approve}>
-                  {approved ? "✓ Premium approved" : `2. Approve ${offer.premium} test USDC`}
+                  {approved ? "✓ Premium approved" : `2. Approve ${offer.premium} test ${offer.currency}`}
                 </button>
               </li>
               <li>
@@ -454,9 +500,10 @@ export function BuyCard({ offer, onDone }: { offer: Offer; onDone: (r: PurchaseD
           </div>
         )}
       </div>
+      {offer.currency === "EURC" && <BridgeEurc defaultAmount={offer.premium} />}
       {step && <Spinner label={step} />}
       <ErrorNote error={error} />
-      <p className="text-xs text-muted">Pool contract <span className="mono">{short(offer.pool)}</span> on Arc Testnet.</p>
+      <p className="text-xs text-muted">{offer.currency} pool contract <span className="mono">{short(offer.pool)}</span> on Arc Testnet.</p>
     </div>
   );
 }

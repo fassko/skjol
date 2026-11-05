@@ -6,7 +6,7 @@ import { ConnectStep } from "../components/cover-steps";
 import { useSession } from "../components/session";
 import { DataLabel, ErrorNote, Section, Spinner, StatusPill } from "../components/ui";
 
-interface PolicySummary { policyId: string; status: string; vesselName: string | null; port: string; deadline: string; payout: string; premium: string; lastEvaluation: string; productId: string; thresholdHours: number }
+interface PolicySummary { policyId: string; status: string; vesselName: string | null; port: string; deadline: string; payout: string; premium: string; lastEvaluation: string; productId: string; thresholdHours: number; currency?: string }
 interface ShipmentSummary { shipmentId: string; status: string; dataLabel: string; fileName: string; vessel: string; createdAtSec: number }
 
 export default function PoliciesPage() {
@@ -46,7 +46,7 @@ export default function PoliciesPage() {
                 <StatusPill status={p.status} />
               </div>
               <div className="text-sm text-ink-2">To {p.port} · deadline {fmtDate(p.deadline)}</div>
-              <div className="text-sm">Payout <strong>{p.payout} test USDC</strong> if more than {p.thresholdHours >= 1 ? `${p.thresholdHours} h` : `${Math.round(p.thresholdHours * 60)} min`} late</div>
+              <div className="text-sm">Payout <strong>{p.payout} test {p.currency ?? "USDC"}</strong> if more than {p.thresholdHours >= 1 ? `${p.thresholdHours} h` : `${Math.round(p.thresholdHours * 60)} min`} late</div>
               {p.lastEvaluation && <div className="text-xs">Last check: <StatusPill status={p.lastEvaluation} /></div>}
             </Link>
           ))}

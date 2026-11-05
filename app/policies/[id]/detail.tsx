@@ -1,6 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { api, fmtDate, short } from "../../components/api";
+import { BridgeEurc } from "../../components/bridge-eurc";
+import { CodeBlock } from "../../components/code-block";
 import { DataLabel, ErrorNote, ExtLink, Section, Spinner, StatusPill, TestFunds } from "../../components/ui";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -81,8 +83,8 @@ export function PolicyDetail({ policyId }: { policyId: string }) {
 
         <Section title="Your cover">
           <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
-            <dt className="text-muted">Payout</dt><dd><strong>{d.payout}</strong> USDC <TestFunds /></dd>
-            <dt className="text-muted">Premium paid</dt><dd>{d.premium} USDC</dd>
+            <dt className="text-muted">Payout</dt><dd><strong>{d.payout}</strong> {d.currency} <TestFunds currency={d.currency} /></dd>
+            <dt className="text-muted">Premium paid</dt><dd>{d.premium} {d.currency}</dd>
             <dt className="text-muted">Threshold</dt><dd>more than {d.thresholdHours >= 1 ? `${d.thresholdHours} hours` : `${Math.round(d.thresholdHours * 60)} minutes`} late</dd>
             <dt className="text-muted">Vessel IMO</dt><dd className="mono">{d.vesselImo}</dd>
             {d.voyageRef && (<><dt className="text-muted">Voyage</dt><dd className="mono">{d.voyageRef}</dd></>)}
@@ -115,12 +117,12 @@ function Receipt({ d }: { d: Detail }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wide text-muted font-semibold">Settlement receipt</div>
-          <div className="font-display text-3xl font-semibold mt-1">{paid ? `${d.payout} USDC paid` : "Closed — no payout due"}</div>
+          <div className="font-display text-3xl font-semibold mt-1">{paid ? `${d.payout} ${d.currency} paid` : "Closed — no payout due"}</div>
           <p className="text-sm text-ink-2 mt-1">
             {d.recordedArrival ? <>Recorded arrival {fmtDate(d.recordedArrival)} vs agreed deadline {fmtDate(d.deadline)}.</> : null}
           </p>
         </div>
-        <TestFunds />
+        <TestFunds currency={d.currency} />
       </div>
       <dl className="text-sm grid sm:grid-cols-3 gap-3 mt-4">
         <div><dt className="text-muted text-xs">Transaction</dt><dd><ExtLink href={d.settlementTxUrl}>{short(d.settlementTx)}</ExtLink></dd></div>
@@ -129,6 +131,11 @@ function Receipt({ d }: { d: Detail }) {
         {payoutEvent && <div><dt className="text-muted text-xs">Block</dt><dd className="mono text-xs">{payoutEvent.blockNumber}</dd></div>}
         <div><dt className="text-muted text-xs">Reserve</dt><dd>Released back to the pool</dd></div>
       </dl>
+      {paid && d.currency === "EURC" && d.owned && (
+        <div className="mt-4">
+          <BridgeEurc defaultAmount={d.payout} direction="out" title="Move your EURC payout to another chain" />
+        </div>
+      )}
     </div>
   );
 }
@@ -208,7 +215,6 @@ function Timeline({ d }: { d: Detail }) {
 }
 
 function ArkivPanel({ a, chain, events }: { a: any; chain: any; events: any[] }) {
-  const [copied, setCopied] = useState(false);
   const blockOf = (label: string) => events.find((e) => label.endsWith(e.kind));
   return (
     <Section
@@ -223,7 +229,7 @@ function ArkivPanel({ a, chain, events }: { a: any; chain: any; events: any[] })
         <p className="text-ink-2">
           This shipment’s records live as entities on <strong>{a.network}</strong> (chain ID {a.chainId}). Anyone can read them, so customer details are
           encrypted and links between records use keyed tags. Only entities written by the app’s authorised writer wallets are trusted.
-          {a.approxExpiry && <> The policy record is kept until about {fmtDate(a.approxExpiry)} (block {a.expiresAtBlock}) and is renewed while the cover is open.</>}
+          {a.approxExpiry && <> The policy record is kept until about {fmtDate(a.approxExpiry)} (block {a.expiresAtBlock}) and is renewed while the cover is open. After settlement, the policy and its linked records are kept for 90 days, then expire.</>}
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -269,14 +275,8 @@ function ArkivPanel({ a, chain, events }: { a: any; chain: any; events: any[] })
         </div>
         <details>
           <summary className="cursor-pointer text-xs font-semibold">Query this policy from Arkiv yourself</summary>
-          <div className="relative mt-2">
-            <pre className="text-xs mono bg-paper-2 rounded p-3 overflow-x-auto">{a.query}</pre>
-            <button
-              className="absolute top-2 right-2 btn btn-ghost !py-0.5 !px-2 !text-[11px]"
-              onClick={() => navigator.clipboard.writeText(a.query).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}
-            >
-              {copied ? "Copied" : "Copy"}
-            </button>
+          <div className="mt-2">
+            <CodeBlock code={a.query} label="Arkiv SDK · TypeScript" />
           </div>
         </details>
       </div>
