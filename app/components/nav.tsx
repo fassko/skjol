@@ -65,9 +65,12 @@ export function Nav() {
 
 function Anchor() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
-      <circle cx="12" cy="5" r="2.2" />
-      <path d="M12 7.2V21M5 13a7 7 0 0 0 14 0M8 10h8" />
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {/* S-as-anchor: ring + stock + S hanging from the bar + hooked flukes */}
+      <circle cx="12" cy="3.35" r="1.8" />
+      <path d="M12 5.15v1.35M5 8h14" />
+      <path d="M16.85 9.7C16.85 8 15 7.1 12 7.1c-2.55 0-4.5.85-4.5 2.55 0 1.35.8 2.05 2.55 2.65l4.6 1.55c1.75.6 2.55 1.35 2.55 2.8 0 2-2.05 3.2-4.95 3.2-2.85 0-4.9-1.2-4.8-3.55" />
+      <path d="M7.2 18.4c-1.2.2-2.4 1-2.95 2.2M16.8 18.4c1.2.2 2.4 1 2.95 2.2" />
     </svg>
   );
 }
