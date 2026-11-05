@@ -165,11 +165,11 @@ function validate(raw: z.infer<typeof ModelOutput>, pages: string[], source: Ext
           issues.push({ field: f, kind: "invalid", message: "Date could not be read unambiguously." });
         } else value = iso;
       }
-      if (f === "vesselImo" && !isValidImo(value)) {
+      if (value && f === "vesselImo" && !isValidImo(value)) {
         status = "unverified";
         issues.push({ field: f, kind: "invalid", message: "This is not a valid IMO number (check digit fails)." });
       }
-      if (f === "destinationLocode") {
+      if (value && f === "destinationLocode") {
         value = normaliseLocode(value);
         if (!SUPPORTED_PORTS[value]) issues.push({ field: f, kind: "invalid", message: "This port is not covered by the arrival data source." });
       }
