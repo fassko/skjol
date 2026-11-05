@@ -8,6 +8,16 @@ Built for ETHGlobal Mumbai on **Arc** (settlement), **Arkiv** (application DB), 
 
 **Arc Studio project:** [studio.arc.io/app/03aa1ed4-…](https://studio.arc.io/app/03aa1ed4-209d-44ee-b09c-2523a48babe3). The USDC pool was tested and deployed in Arc Studio, which also built a pool app on it. Arc bounty: *Best Smart Contracts with Advanced Stablecoin Logic, In Arc Studio*. Details: [`docs/arc-studio.md`](./docs/arc-studio.md).
 
+### Prize tracks and where the evidence is
+
+| Track | Evidence |
+|---|---|
+| Arc: Best Smart Contracts with Advanced Stablecoin Logic, In Arc Studio | [`docs/arc-studio.md`](./docs/arc-studio.md), [Studio project](https://studio.arc.io/app/03aa1ed4-209d-44ee-b09c-2523a48babe3) |
+| Hedera: AI Agents That Pay (x402) | [Hedera x402](#hedera-x402-the-agent-pays-for-port-data) below, [`docs/freight-agent-x402.md`](./docs/freight-agent-x402.md) |
+| Arkiv: Build on Arkiv + Arkiv/Swarm bonus | [Arkiv section](#arkiv-writers--one-query-you-can-run) below, [`arkiv/`](./arkiv) |
+| Uniswap: Build with Uniswap | [Uniswap section](#uniswap-tradeable-pool-shares) below, [`FEEDBACK.md`](./FEEDBACK.md) |
+| Chainlink: Best Workflow with CRE | [`cre/README.md`](./cre/README.md) |
+
 ## How it works
 
 1. **Upload a bill of lading** and confirm the vessel, destination port, and arrival deadline.
@@ -109,6 +119,37 @@ Sign in on `/agent`, open **Wallet & limits**, and choose **Show MCP token**. Th
 Tools: `discoverServices`, `callPaidService`, `listShipments`, `getShipment`, `getQuotes`, `buyCover`, `approveCover`, `getSpendingStatus`. Premiums above the approval threshold (default 0.50) go through `approveCover`, which asks the person in the MCP client before it mints a token for `buyCover`.
 
 Details: [`docs/freight-agent-x402.md`](./docs/freight-agent-x402.md).
+
+## Hedera x402: the agent pays for port data
+
+Skjol's port-data endpoints (`/api/paid/vessel-arrivals`, `/api/paid/delay-risk`) are x402-protected. A 402 response offers two rails: Arc Testnet USDC through Circle Gateway, and **Hedera testnet USDC** (HTS `0.0.429274`), settled by the [x402.org facilitator](https://x402.org/facilitator), which pays the Hedera fee. The freight agent finds the endpoint with `discoverServices` and pays with `callPaidService`. No person approves data calls. Server-side limits apply instead: per-call max, daily cap, payee allow-list and kill switch.
+
+**Payment flow:** agent `GET` → `402 PAYMENT-REQUIRED` → `checkSpend()` on the exact amount → sign a Hedera USDC transfer → retry with `PAYMENT-SIGNATURE` → facilitator verifies → data handler runs → facilitator settles → `200` with `PAYMENT-RESPONSE`. Each decision is written to an HCS audit topic and to the Arkiv spend ledger.
+
+**Settled by the agent on the live app:** [`0.0.9185802@1793886646.362665794`](https://hashscan.io/testnet/transaction/0.0.9185802-1793886646-362665794) on HashScan. 0.01 USDC went from agent `0.0.11322969` to payee `0.0.11322970`. Audit message: [HCS topic `0.0.11322971` #2](https://hashscan.io/testnet/topic/0.0.11322971/message/2).
+
+| Piece | Where |
+|---|---|
+| Paid endpoints (`withX402`, both rails) | [`lib/x402/server.ts`](./lib/x402/server.ts), [`lib/x402/services.ts`](./lib/x402/services.ts), [`app/api/paid/`](./app/api/paid) |
+| Agent payment, limits, rail choice | [`lib/agent-wallet.ts`](./lib/agent-wallet.ts) `payForResource` |
+| Hedera signer, HCS audit, HashScan links | [`lib/hedera.ts`](./lib/hedera.ts) |
+| One-time testnet setup (accounts, USDC association, topic) | [`scripts/hedera-setup.mts`](./scripts/hedera-setup.mts) |
+
+Reproduce from the command line: `RAIL=hedera BASE=https://skjol-insurance.vercel.app node --env-file=.env.local --import tsx scripts/x402-smoke.mts`. Setup, env vars, architecture and demo script are in [`docs/freight-agent-x402.md`](./docs/freight-agent-x402.md).
+
+## Uniswap: tradeable pool shares
+
+Capital funders get ERC-4626 shares (`skjolUSDC`). Premiums raise their value and payouts lower it. A Uniswap V2 pair against USDC on Arc Testnet lets a funder exit without waiting for capital that is reserved for open policies to free up. Developer feedback: [`FEEDBACK.md`](./FEEDBACK.md).
+
+| Piece | Where |
+|---|---|
+| Pool share token (ERC-4626) | [`contracts/src/ShipmentDelayPool.sol`](./contracts/src/ShipmentDelayPool.sol) L30, `fund` L200, `maxWithdraw` / `maxRedeem` L211–L224 |
+| Create and seed the pair (`createPair`, `addLiquidity`) | [`scripts/seed-share-pair.mts`](./scripts/seed-share-pair.mts) |
+| Quote and swap in the app (`getAmountsOut`, `swapExactTokensForTokens`) | [`app/capital/page.tsx`](./app/capital/page.tsx) `TradePanel` L378–L500 |
+| Router ABI | [`lib/abi/uniswap-v2.ts`](./lib/abi/uniswap-v2.ts) |
+| Factory and router addresses | [`lib/config.ts`](./lib/config.ts) L78–L81 |
+
+On Arc Testnet: pair [`0x4aEe…78D2`](https://explorer.testnet.arc.io/address/0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2), V2 factory `0x7483847d46db2920dd64efa676cf72dcf765814f`, router `0xe27d5d256b370604f1ff060fb489c6a8e3f8a6d9`. Try it on [Capital](https://skjol-insurance.vercel.app/capital).
 
 ## Develop
 
