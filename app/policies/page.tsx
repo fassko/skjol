@@ -4,20 +4,17 @@ import { useEffect, useState } from "react";
 import { api, fmtDate } from "../components/api";
 import { ConnectStep } from "../components/cover-steps";
 import { useSession } from "../components/session";
-import { DataLabel, ErrorNote, Section, Spinner, StatusPill } from "../components/ui";
+import { ErrorNote, Section, Spinner, StatusPill } from "../components/ui";
 
 interface PolicySummary { policyId: string; status: string; vesselName: string | null; port: string; deadline: string; payout: string; premium: string; lastEvaluation: string; productId: string; thresholdHours: number; currency?: string }
-interface ShipmentSummary { shipmentId: string; status: string; dataLabel: string; fileName: string; vessel: string; createdAtSec: number }
 
 export default function PoliciesPage() {
   const { session, loading } = useSession();
   const [policies, setPolicies] = useState<PolicySummary[] | null>(null);
-  const [shipments, setShipments] = useState<ShipmentSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!session) return;
     api<{ policies: PolicySummary[] }>("/api/policies").then((r) => setPolicies(r.policies)).catch((e) => setError(e.message));
-    api<{ shipments: ShipmentSummary[] }>("/api/shipments").then((r) => setShipments(r.shipments)).catch(() => setShipments([]));
   }, [session]);
 
   if (loading) return <Spinner />;
@@ -51,19 +48,6 @@ export default function PoliciesPage() {
             </Link>
           ))}
         </div>
-      )}
-      {shipments && shipments.some((s) => s.status !== "insured") && (
-        <Section title="Documents without cover">
-          <ul className="text-sm divide-y divide-line">
-            {shipments.filter((s) => s.status !== "insured").map((s) => (
-              <li key={s.shipmentId} className="py-2 flex items-center gap-3">
-                <span className="flex-1">{s.vessel || s.fileName}</span>
-                <DataLabel label={s.dataLabel} />
-                <span className="text-xs text-muted">{s.status}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
       )}
     </div>
   );
