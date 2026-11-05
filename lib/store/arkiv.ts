@@ -2,10 +2,12 @@ import "server-only";
 import { createPublicClient, createWalletClient, ExpirationTime, NoEntityFoundError } from "@arkiv-network/sdk";
 import { rabdi } from "@arkiv-network/sdk/chains";
 import { addr, bytes, defineSchema, i32, str, u256, u64 } from "@arkiv-network/sdk/schema";
-import { desc, eq, lt, and } from "@arkiv-network/sdk/query";
+import { desc, eq, gte, lt, and } from "@arkiv-network/sdk/query";
 import { http, hexToBytes, type Hex } from "viem";
 import { account, config } from "../config";
 import type {
+  AgentSettingsRecord,
+  AgentSpendRecord,
   AppStore,
   ChainEventRecord,
   EvaluationRecord,
@@ -26,6 +28,8 @@ export const SCHEMA_NAMES = {
   evaluation: "skjol.v1.evaluation",
   chainEvent: "skjol.v1.chain-event",
   syncCursor: "skjol.v1.sync-cursor",
+  agentSpend: "skjol.v1.agent-spend",
+  agentSettings: "skjol.v1.agent-settings",
 } as const;
 
 export const SyncCursors = defineSchema(SCHEMA_NAMES.syncCursor, {
@@ -118,6 +122,32 @@ export const ChainEvents = defineSchema(SCHEMA_NAMES.chainEvent, {
   data: bytes(),
 });
 
+export const AgentSpends = defineSchema(SCHEMA_NAMES.agentSpend, {
+  spendId: str().indexed(),
+  ownerTag: str().indexed(),
+  kind: str().indexed(),
+  rail: str().indexed(),
+  network: str().indexed(),
+  resource: str(),
+  amountUnits: u256(),
+  asset: str(),
+  status: str().indexed(),
+  reason: str(),
+  reference: str(),
+  hcs: str(),
+  createdAtSec: u64().indexed(),
+});
+
+export const AgentSettings = defineSchema(SCHEMA_NAMES.agentSettings, {
+  ownerTag: str().indexed(),
+  perCallMax: u256(),
+  dailyCap: u256(),
+  approvalThreshold: u256(),
+  paused: str().indexed(),
+  preferredRail: str(),
+  updatedAtSec: u64(),
+});
+
 // ---------------------------------------------------------------- clients
 const chain = () => rabdi({ accessKey: config.arkivAccessKey() });
 
@@ -182,10 +212,17 @@ export function writerAddresses(): Record<Writer, Hex> {
   };
 }
 
-// Expiration policy (see arkiv/schema.md): drafts 30 days, policy-linked records 120 days,
-// renewed by the sync job while a policy is unresolved or recently settled.
+// Expiration policy: drafts live 30 days. A policy and every record tied to it live ACTIVE_DAYS,
+// renewed together by the sync job while the cover is open, then expire SETTLED_RETENTION_DAYS
+// after the settlement block. Arkiv can only move an expiry later, so the retention window must be
+// at least ACTIVE_DAYS or settled records would outlive it.
+const ACTIVE_DAYS = 60;
+const SETTLED_RETENTION_DAYS = 90;
+const DAY_SEC = 86_400;
 const DRAFT_TTL = () => ExpirationTime.fromDays(30);
-const POLICY_TTL = () => ExpirationTime.fromDays(120);
+const POLICY_TTL = () => ExpirationTime.fromDays(ACTIVE_DAYS);
+const CONFIG_TTL = () => ExpirationTime.fromDays(120);
+type TrailSchema = typeof Policies | typeof ChainEvents | typeof Observations | typeof Evaluations | typeof Quotes | typeof Shipments;
 
 const enc = (s: string) => new TextEncoder().encode(s);
 const dec = (h: Hex) => new TextDecoder().decode(hexToBytes(h));
@@ -277,6 +314,32 @@ const toChainEvent = (e: any): ChainEventRecord => ({
   logIndex: e.logIndex.value,
   amountUnits: e.amountUnits.value,
   data: dec(e.data.value),
+});
+const toAgentSpend = (e: any): AgentSpendRecord => ({
+  key: e.$key,
+  spendId: e.spendId.value,
+  ownerTag: e.ownerTag.value,
+  kind: e.kind.value,
+  rail: e.rail.value,
+  network: e.network.value,
+  resource: e.resource.value,
+  amountUnits: e.amountUnits.value,
+  asset: e.asset.value,
+  status: e.status.value,
+  reason: e.reason.value,
+  reference: e.reference.value,
+  hcs: e.hcs.value,
+  createdAtSec: num(e.createdAtSec),
+});
+const toAgentSettings = (e: any): AgentSettingsRecord => ({
+  key: e.$key,
+  ownerTag: e.ownerTag.value,
+  perCallMax: e.perCallMax.value,
+  dailyCap: e.dailyCap.value,
+  approvalThreshold: e.approvalThreshold.value,
+  paused: e.paused.value === "true",
+  preferredRail: e.preferredRail.value,
+  updatedAtSec: num(e.updatedAtSec),
 });
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -572,30 +635,136 @@ export class ArkivStore implements AppStore {
     const { entities } = await pub().select({ $key: true }).from(SyncCursors).createdBy(this.w.sync).where(eq("cursorId", cursorId)).limit(1).fetch();
     if (entities[0]) {
       await write("sync", (c) => c.patchEntity(SyncCursors, entities[0].$key, { set: { block: u64(block) } }));
-      await write("sync", (c) => c.extendEntity({ entityKey: entities[0].$key, expiration: POLICY_TTL() }));
+      await write("sync", (c) => c.extendEntity({ entityKey: entities[0].$key, expiration: CONFIG_TTL() }));
     } else {
-      await write("sync", (c) => c.createEntity(SyncCursors, { cursorId, chainId: u64(BigInt(chainId)), block: u64(block) }, { expiration: POLICY_TTL() }));
+      await write("sync", (c) => c.createEntity(SyncCursors, { cursorId, chainId: u64(BigInt(chainId)), block: u64(block) }, { expiration: CONFIG_TTL() }));
     }
   }
 
-  // renewal ------------------------------------------------------------------
-  /** Extend unresolved policies (and recently settled ones under review) that expire soon. */
-  async extendExpiring(withinBlocks: bigint) {
-    const { currentBlock } = await pub().getBlockTiming();
+  // retention ----------------------------------------------------------------
+  async listActivePoliciesExpiring(withinSec: number) {
+    const { currentBlock, blockDuration } = await pub().getBlockTiming();
     const { entities } = await pub()
-      .select({ $key: true, $expiresAt: true, status: true })
+      .select()
       .from(Policies)
       .createdBy(this.w.sync)
-      .where(and(eq("status", "active"), lt("$expiresAt", u64(currentBlock + withinBlocks))))
+      .where(and(eq("status", "active"), lt("$expiresAt", u64(currentBlock + BigInt(Math.ceil(withinSec / (blockDuration || 2)))))))
       .limit(100)
       .fetch();
-    for (const e of entities) {
-      try {
-        await write("sync", (c) => c.extendEntity({ entityKey: e.$key, expiration: POLICY_TTL() }));
-      } catch (err) {
-        if (!(err instanceof NoEntityFoundError)) throw err;
+    return entities.map(toPolicy);
+  }
+
+  async retainPolicyTrail(trail: { policyId: string; shipmentId: string }, settledAtSec?: number) {
+    const { currentBlock, currentBlockTime, blockDuration } = await pub().getBlockTiming();
+    const untilSec = settledAtSec === undefined ? currentBlockTime + ACTIVE_DAYS * DAY_SEC : settledAtSec + SETTLED_RETENTION_DAYS * DAY_SEC;
+    const until = currentBlock + BigInt(Math.floor((untilSec - currentBlockTime) / (blockDuration || 2)));
+    if (until <= currentBlock) return 0;
+
+    const sooner = lt("$expiresAt", u64(until));
+    const keys = async (schema: TrailSchema, writer: Writer, field: string, value: string): Promise<Hex[]> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const q = pub().select({ $key: true }).from(schema as any).createdBy(this.w[writer]);
+      const { entities } = await q.where(and(eq(field, value), sooner)).limit(200).fetch();
+      return entities.map((e) => e.$key);
+    };
+    const id = trail.policyId;
+    const [policy, events, observations, evaluations, quotes, shipment] = await Promise.all([
+      keys(Policies, "sync", "policyId", id),
+      keys(ChainEvents, "sync", "policyId", id),
+      keys(Observations, "observer", "policyId", id),
+      keys(Evaluations, "observer", "policyId", id),
+      keys(Quotes, "app", "policyId", id),
+      trail.shipmentId ? keys(Shipments, "app", "shipmentId", trail.shipmentId) : Promise.resolve([]),
+    ]);
+    const byWriter: [Writer, Hex[]][] = [
+      ["sync", [...policy, ...events]],
+      ["observer", [...observations, ...evaluations]],
+      ["app", [...quotes, ...shipment]],
+    ];
+    const expiration = ExpirationTime.atBlock(until);
+    let n = 0;
+    for (const [writer, all] of byWriter) {
+      for (let i = 0; i < all.length; i += 50) {
+        const chunk = all.slice(i, i + 50);
+        try {
+          await write(writer, (c) => c.executeBatch({ extensions: chunk.map((entityKey) => ({ entityKey, expiration })) }));
+        } catch (err) {
+          if (!(err instanceof NoEntityFoundError)) throw err;
+          // One record expired between the query and the batch; extend the rest one by one.
+          for (const entityKey of chunk) {
+            try {
+              await write(writer, (c) => c.extendEntity({ entityKey, expiration }));
+            } catch (e) {
+              if (!(e instanceof NoEntityFoundError)) throw e;
+            }
+          }
+        }
+        n += chunk.length;
       }
     }
-    return entities.length;
+    return n;
+  }
+
+  // freight agent ------------------------------------------------------------
+  async putAgentSpend(r: AgentSpendRecord) {
+    const { entityKey } = await write("app", (c) => c.createEntity(
+      AgentSpends,
+      {
+        spendId: r.spendId,
+        ownerTag: r.ownerTag,
+        kind: r.kind,
+        rail: r.rail,
+        network: r.network,
+        resource: r.resource.slice(0, 300),
+        amountUnits: r.amountUnits,
+        asset: r.asset,
+        status: r.status,
+        reason: r.reason.slice(0, 300),
+        reference: r.reference.slice(0, 200),
+        hcs: r.hcs,
+        createdAtSec: u64(BigInt(r.createdAtSec)),
+      },
+      { expiration: DRAFT_TTL() },
+    ));
+    return { ...r, key: entityKey };
+  }
+
+  async listAgentSpends(filter: { ownerTag: string; sinceSec?: number; limit?: number }) {
+    const where = filter.sinceSec
+      ? and(eq("ownerTag", filter.ownerTag), gte("createdAtSec", u64(BigInt(filter.sinceSec))))
+      : eq("ownerTag", filter.ownerTag);
+    const { entities } = await pub()
+      .select()
+      .from(AgentSpends)
+      .createdBy(this.w.app)
+      .where(where)
+      .orderBy(desc("createdAtSec"))
+      .limit(filter.limit ?? 100)
+      .fetch();
+    return entities.map(toAgentSpend);
+  }
+
+  async getAgentSettings(ownerTag: string) {
+    const { entities } = await pub().select().from(AgentSettings).createdBy(this.w.app).where(eq("ownerTag", ownerTag)).limit(1).fetch();
+    return entities[0] ? toAgentSettings(entities[0]) : null;
+  }
+
+  async putAgentSettings(r: AgentSettingsRecord) {
+    const values = {
+      ownerTag: r.ownerTag,
+      perCallMax: r.perCallMax,
+      dailyCap: r.dailyCap,
+      approvalThreshold: r.approvalThreshold,
+      paused: String(r.paused),
+      preferredRail: r.preferredRail,
+      updatedAtSec: u64(BigInt(r.updatedAtSec)),
+    };
+    const existing = await this.getAgentSettings(r.ownerTag);
+    if (existing?.key) {
+      await write("app", (c) => c.patchEntity(AgentSettings, existing.key as Hex, { set: values }));
+      return { ...r, key: existing.key };
+    }
+    const { entityKey } = await write("app", (c) => c.createEntity(AgentSettings, values, { expiration: CONFIG_TTL() }));
+    return { ...r, key: entityKey };
   }
 }

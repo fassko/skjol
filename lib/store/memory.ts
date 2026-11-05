@@ -1,5 +1,7 @@
 // In-memory store for unit tests ONLY (never used by the running app on Vercel).
 import type {
+  AgentSettingsRecord,
+  AgentSpendRecord,
   AppStore,
   ChainEventRecord,
   EvaluationRecord,
@@ -111,7 +113,31 @@ export class MemoryStore implements AppStore {
   async setSyncCursor(chainId: number, pool: string, block: bigint) {
     this.cursors.set(`${chainId}:${pool.toLowerCase()}`, block);
   }
-  async extendExpiring() {
+  async listActivePoliciesExpiring() {
+    return [];
+  }
+  async retainPolicyTrail() {
     return 0;
+  }
+  spends: AgentSpendRecord[] = [];
+  settings = new Map<string, AgentSettingsRecord>();
+  async putAgentSpend(r: AgentSpendRecord) {
+    const rec = { ...r, key: this.k() };
+    this.spends.push(rec);
+    return rec;
+  }
+  async listAgentSpends(f: { ownerTag: string; sinceSec?: number; limit?: number }) {
+    return this.spends
+      .filter((s) => s.ownerTag === f.ownerTag && s.createdAtSec >= (f.sinceSec ?? 0))
+      .sort((a, b) => b.createdAtSec - a.createdAtSec)
+      .slice(0, f.limit ?? 100);
+  }
+  async getAgentSettings(ownerTag: string) {
+    return this.settings.get(ownerTag) ?? null;
+  }
+  async putAgentSettings(r: AgentSettingsRecord) {
+    const rec = { ...r, key: this.settings.get(r.ownerTag)?.key ?? this.k() };
+    this.settings.set(r.ownerTag, rec);
+    return rec;
   }
 }

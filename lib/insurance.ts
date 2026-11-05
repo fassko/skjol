@@ -3,13 +3,13 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getAddress, type Address, type Hex } from "viem";
 import { REQUIRED, documentToText, extractShipment, type Extraction } from "./ai/extract";
-import { chainConfig, config } from "./config";
+import { chainConfig, config, poolConfigs, poolFor } from "./config";
 import { blindTag, openJson, sealJson } from "./crypto";
 import { signQuote } from "./chain";
 import { storeDocument } from "./swarm";
 import { HttpError, type Session } from "./session";
 import { store, type PolicyPrivate, type PolicyRecord, type QuotePrivate, type ShipmentPrivate, type ShipmentRecord } from "./store";
-import { PRODUCTS, checkEligibility, formatUsdc, isValidImo, normaliseLocode, type ConfirmedShipment, type ProductId } from "../shared/products";
+import { PRODUCTS, checkEligibility, formatUsdc, isValidImo, normaliseLocode, type ConfirmedShipment, type Currency, type ProductId } from "../shared/products";
 import { buildQuoteMessage } from "../shared/quote";
 
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
@@ -93,32 +93,45 @@ export interface QuoteOffer {
   terms: string;
   chainId: number;
   pool: Address;
-  usdc: Address;
+  currency: Currency;
+  /** Settlement token (USDC or EURC on Arc). */
+  token: Address;
   message: Record<string, string | number>;
   signature: Hex;
   demoOnly: boolean;
 }
 
-export async function issueQuotes(shipmentId: string, session: Session, nowSec = Math.floor(Date.now() / 1000)) {
+export function availableCurrencies(): Currency[] {
+  return poolConfigs().map((p) => p.currency);
+}
+
+export async function issueQuotes(shipmentId: string, session: Session, opts: { currency?: Currency; nowSec?: number } = {}) {
+  const nowSec = opts.nowSec ?? Math.floor(Date.now() / 1000);
+  const currency = opts.currency ?? "USDC";
   const { rec, priv } = await loadOwnedShipment(shipmentId, session);
   if (!priv.confirmed) throw new HttpError(409, "Please review and confirm the shipment details before requesting a quote.");
   const shipment = priv.confirmed as ConfirmedShipment;
   const c = chainConfig();
-  if (!c.pool) throw new HttpError(503, "The insurance pool is not configured yet.");
+  const pool = poolFor(currency);
+  if (!pool) throw new HttpError(503, currency === "USDC" ? "The insurance pool is not configured yet." : `${currency} cover is not available on this deployment.`);
 
   const offers: QuoteOffer[] = [];
   const declined: { productId: ProductId; reasons: string[] }[] = [];
   for (const product of Object.values(PRODUCTS)) {
     if (product.demoOnly && !config.demoProductsEnabled()) continue;
-    const issues = checkEligibility(shipment, product, nowSec, { demoProductsEnabled: config.demoProductsEnabled() });
+    const issues = checkEligibility(shipment, product, nowSec, {
+      demoProductsEnabled: config.demoProductsEnabled(),
+      availableSources: config.availableEvidenceSources(product.demoOnly),
+    });
     if (issues.length) {
       declined.push({ productId: product.id, reasons: issues.map((i) => i.message) });
       continue;
     }
-    const { message, terms } = buildQuoteMessage({ shipmentId, shipment, product, beneficiary: session.address, nowSec });
-    const signature = await signQuote(message);
+    const { message, terms } = buildQuoteMessage({ shipmentId, shipment, product, beneficiary: session.address, nowSec, currency });
+    const signature = await signQuote(message, pool.pool);
     const msgJson = Object.fromEntries(Object.entries(message).map(([k, v]) => [k, typeof v === "bigint" ? v.toString() : v])) as Record<string, string | number>;
-    const qpriv: QuotePrivate & { shipmentId: string; vesselName: string; voyageRef: string } = {
+    const qpriv: QuotePrivate & { shipmentId: string; vesselName: string; voyageRef: string; currency: Currency } = {
+      currency,
       beneficiary: session.address,
       message: msgJson,
       signature,
@@ -139,7 +152,7 @@ export async function issueQuotes(shipmentId: string, session: Session, nowSec =
       quoteExpirySec: Number(message.quoteExpiry),
       termsHash: message.termsHash,
       chainId: c.id,
-      pool: c.pool,
+      pool: pool.pool,
       sealed: sealJson(qpriv, `quote:${message.quoteId}`),
     });
     offers.push({
@@ -157,15 +170,16 @@ export async function issueQuotes(shipmentId: string, session: Session, nowSec =
       quoteExpiry: new Date(Number(message.quoteExpiry) * 1000).toISOString(),
       terms,
       chainId: c.id,
-      pool: c.pool,
-      usdc: c.usdc,
+      pool: pool.pool,
+      currency,
+      token: pool.token,
       message: msgJson,
       signature,
       demoOnly: product.demoOnly,
     });
   }
   if (offers.length && rec.status === "confirmed") await store().updateShipment(rec, { status: "quoted" });
-  return { shipmentId, offers, declined };
+  return { shipmentId, currency, currencies: availableCurrencies(), offers, declined };
 }
 
 // ---------------------------------------------------------------- policies
