@@ -11,10 +11,10 @@ export const PUBLIC_EURC = (process.env.NEXT_PUBLIC_EURC_ADDRESS ??
   "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a") as Address;
 
 export const PUBLIC_USDC_POOL = (process.env.NEXT_PUBLIC_POOL_ADDRESS ??
-  "0xf9a17a1b28eecaa8ef15cae0473c39a9c9e91301") as Address;
+  "0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4") as Address;
 
 export const PUBLIC_EURC_POOL = (process.env.NEXT_PUBLIC_EURC_POOL_ADDRESS ??
   "0x3a68001a32a0a5d174b3ed08ba58d42dd70daa84") as Address;
 
 export const PUBLIC_USDC_SHARE_PAIR = (process.env.NEXT_PUBLIC_USDC_SHARE_PAIR ??
-  "0x74BC77B067091afd1A7AcB65c4d205002444cC5B") as Address;
+  "0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2") as Address;

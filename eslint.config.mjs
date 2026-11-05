@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Separate Vite app built in Arc Studio, with its own lint config.
+    "arc-studio/**",
   ]),
 ]);
 

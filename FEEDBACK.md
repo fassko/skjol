@@ -17,9 +17,10 @@ On Arc Testnet (chain id `5042002`):
 
 | | Address / tx |
 |---|---|
-| USDC pool (`skjolUSDC`) | [`0xf9a17a1b28eecaa8ef15cae0473c39a9c9e91301`](https://explorer.testnet.arc.io/address/0xf9a17a1b28eecaa8ef15cae0473c39a9c9e91301) |
-| skjolUSDC / USDC pair | [`0x74BC77B067091afd1A7AcB65c4d205002444cC5B`](https://explorer.testnet.arc.io/address/0x74BC77B067091afd1A7AcB65c4d205002444cC5B) |
-| Seed liquidity (5 shares + 5 USDC) | [`0xc04629be…d828d9`](https://explorer.testnet.arc.io/tx/0xc04629be43abca883fec8507b0a6fdf7c765951fe9f8f1592c2fb34f3fd828d9) |
+| USDC pool (`skjolUSDC`) | [`0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4`](https://explorer.testnet.arc.io/address/0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4) |
+| skjolUSDC / USDC pair | [`0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2`](https://explorer.testnet.arc.io/address/0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2) |
+| Seed liquidity (2 shares + 2 USDC) | [`0x3993b71a…6cd0fe`](https://explorer.testnet.arc.io/tx/0x3993b71ab115850c3db960a18091e4c54552eec74be1dc290cf88efe4e6cd0fe) |
+| Earlier USDC pool and pair (before the Arc Studio redeploy) | [`0xf9a17a1b…9e91301`](https://explorer.testnet.arc.io/address/0xf9a17a1b28eecaa8ef15cae0473c39a9c9e91301) / [`0x74BC77B0…444cC5B`](https://explorer.testnet.arc.io/address/0x74BC77B067091afd1A7AcB65c4d205002444cC5B) |
 | V2 factory / router used | `0x7483847d46db2920dd64efa676cf72dcf765814f` / `0xe27d5d256b370604f1ff060fb489c6a8e3f8a6d9` |
 
 ## What worked

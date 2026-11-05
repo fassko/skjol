@@ -57,3 +57,5 @@ coverage/
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+arc-studio/.arc-studio/
+arc-studio/node_modules/
