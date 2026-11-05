@@ -9,7 +9,6 @@ const LINKS = [
   { href: "/capital", label: "Capital" },
   { href: "/policies", label: "My shipments" },
   { href: "/agent", label: "Freight agent" },
-  { href: "/demo", label: "Demo scenarios" },
   { href: "/integrations", label: "How it's built" },
 ];
 
