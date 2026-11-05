@@ -1,0 +1,22 @@
+SYNTHETIC DEMO DOCUMENT — NOT A REAL SHIPMENT
+===============================================
+BILL OF LADING (NON-NEGOTIABLE COPY)                 Page 1 of 2
+B/L No.: HLXU-BL-448120           Booking Ref: BKG-77310-RTM
+Shipper: Lindqvist Ceramics BV, Rotterdam, Netherlands
+Consignee: Kotiliike Oy, Helsinki, Finland
+Notify party: same as consignee
+
+Vessel: BALTIC WREN            IMO: 9700017      MMSI: 230990001
+Voyage No.: BW-2648E
+Port of Loading: Rotterdam, NL (NLRTM)
+Port of Discharge: Helsinki, FI (FIHEL)
+Shipped on board date: 2 December 2026 08:00 UTC
+
+Container: MSKU 448812-0   20' DRY   Seal: 0031127
+Description of goods: 14 pallets glazed ceramic tiles
+Gross weight: 9,420 kg
+
+-------------------------------------------------------- Page 2 of 2
+Sales contract clause: Seller and buyer agree the vessel shall arrive at the
+port of discharge no later than 10 December 2026 12:00 UTC (agreed arrival deadline).
+Freight prepaid. Carrier: Synthetic Lines AS.

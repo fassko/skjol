@@ -1,0 +1,25 @@
+# Targets:
+#   replay-settings  -> app replay source (synthetic/recorded, labelled), demo clock allowed
+#   staging-settings -> live Digitraffic, simulation (MockKeystoneForwarder on Arc Testnet)
+#   production-settings -> live Digitraffic, for a deployed workflow (KeystoneForwarder)
+replay-settings:
+  user-workflow:
+    workflow-name: "skjol-arrival-replay"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.replay.json"
+    secrets-path: ""
+staging-settings:
+  user-workflow:
+    workflow-name: "skjol-arrival-staging"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.live.json"
+    secrets-path: ""
+production-settings:
+  user-workflow:
+    workflow-name: "skjol-arrival"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.live.json"
+    secrets-path: ""

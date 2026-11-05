@@ -1,0 +1,14 @@
+SYNTHETIC DEMO DOCUMENT — NOT A REAL SHIPMENT
+===============================================
+BOOKING CONFIRMATION                                  Page 1 of 1
+Booking No.: GDN-AS-88412
+Customer: Saaristo Foods Oy, Turku
+
+Vessel: AURORA SKERRY   (IMO 9700031)
+Voyage: AS-7731W
+From: Gdansk, Poland (PLGDN)   To: Turku, Finland (FITKU)
+ETD: 2 Dec 2026 08:00 UTC
+ETA: 9 Dec 2026 18:00 UTC
+Latest agreed arrival: 10 Dec 2026 12:00 UTC
+
+Cargo: 2 x 40' reefer, frozen berries

@@ -1,0 +1,15 @@
+SYNTHETIC DEMO DOCUMENT — NOT A REAL SHIPMENT
+===============================================
+BILL OF LADING                                        Page 1 of 1
+B/L No.: ANR-KB-30012             Booking Ref: ANR-99031
+Shipper: Vandersteen Chemicals NV, Antwerp
+Consignee: Rauman Teollisuus Oy, Rauma
+
+Vessel: KESTREL BAY      IMO No. 9700043
+Voyage: KB-5520S
+Port of Loading: Antwerp (BEANR)      Port of Discharge: Rauma (FIRAU)
+Laden on board: 2 December 2026, 08:00 UTC
+Arrival deadline agreed in purchase order PO-7712: 10 December 2026, 12:00 UTC
+Vessel IMO per carrier notice: 9700043
+
+Goods: 18 IBC totes, non-hazardous resin
