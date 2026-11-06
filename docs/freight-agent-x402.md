@@ -1,6 +1,6 @@
 # Skjol Freight Agent and the paid x402 API
 
-Tracks: **Arc: Mobile Consumer Agent (Marketplace Discovery API)** and **Hedera: AI Agents That Pay (x402)**.
+Track: **Hedera: AI Agents That Pay (x402)**. The agent also pays on Arc through Circle Gateway, but it isn't entered for Arc's mobile agent bounty, because that bounty requires building in Arc Studio.
 
 Skjol sells parametric cover against a vessel arriving late. The Freight Agent is a phone-sized AI agent (`/agent`) that works for a small importer: it finds paid data services, pays for each call by itself, and buys cover within limits the importer sets. Everything runs on testnets with test stablecoins.
 
