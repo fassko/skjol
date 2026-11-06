@@ -48,6 +48,20 @@ Use this if a track asks only for Arkiv + Swarm. Times below are the marks to ci
 
 After you export, replace the pending line in `arkiv/swarm.md` with the real timestamp, for example `0:35 — Storage strip, 0:50 — ciphertext, 1:05 — Arkiv entity`.
 
+### Arc Studio cut (Arc bounty)
+
+Arc requires Studio on screen. Record this as its own 60–90 seconds, or insert it after the Buy beat at 2:28. Open [the Studio project](https://studio.arc.io/app/03aa1ed4-209d-44ee-b09c-2523a48babe3) signed in.
+
+| Mark | Where | Say / show |
+|------|-------|------------|
+| 0:00 | Studio chat | “We brought our pool contract into Arc Studio. It compiled it, ported our tests and added boundary tests.” Scroll to the test summary: 33 passing. |
+| 0:15 | Studio code panel | Open `contracts/ShipmentDelayPool.sol` at `_processReport`: “The payout rule: more than 24 hours late pays, otherwise the reserve goes back to funders.” |
+| 0:30 | Studio chat | The deploy report: pool address, setSimulationOperator, transferOwnership. “Studio deployed from a Circle wallet and handed ownership to us.” |
+| 0:45 | Studio preview | Pool tab: free capital and reserved. Policies tab. |
+| 1:00 | Skjol `/integrations` | The same pool address under Arc: “The live app settles on the contract Studio deployed.” |
+
+Leave the `.env` file closed on camera.
+
 ## Script
 
 Read the left column. Do the right column while you say it. Pause on each link long enough to read the first characters.
@@ -127,4 +141,4 @@ Integrations is read from this deployment. Swarm is the public gateway, postage 
 
 ## What to leave out
 
-The freight agent and the EURC bridge are separate cuts. This video is the cover path plus the two links a judge can open.
+The freight agent and the EURC bridge are separate cuts. This video is the cover path plus the two links a judge can open. The Arc Studio cut above is the only Arc footage the Arc bounty needs.

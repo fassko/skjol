@@ -6,6 +6,8 @@ Parametric **arrival delay cover** for small importers: pay a fixed premium in t
 
 Built for ETHGlobal Mumbai on **Arc** (settlement), **Arkiv** (application DB), **Swarm** (encrypted BoL storage), and **Chainlink CRE** (arrival evaluation).
 
+**Arc Studio project:** [studio.arc.io/app/03aa1ed4-…](https://studio.arc.io/app/03aa1ed4-209d-44ee-b09c-2523a48babe3). The USDC pool was tested and deployed in Arc Studio, which also built a pool app on it. Arc bounty: *Best Smart Contracts with Advanced Stablecoin Logic, In Arc Studio*. Details: [`docs/arc-studio.md`](./docs/arc-studio.md).
+
 ## How it works
 
 1. **Upload a bill of lading** and confirm the vessel, destination port, and arrival deadline.
@@ -20,7 +22,7 @@ Try [Get cover](https://skjol-insurance.vercel.app/cover) with **Use demo wallet
 
 The system diagram from the app’s [How it’s built page](https://skjol-insurance.vercel.app/integrations).
 
-- **Arc:** USDC/EURC pools reserve collateral and settle payouts. Capital funders receive ERC-4626 shares, with share trading through Uniswap V2.
+- **Arc:** USDC/EURC pools reserve collateral and settle payouts. Capital funders receive ERC-4626 shares, with share trading through Uniswap V2. The USDC pool ([`0x2beb…8fa4`](https://explorer.testnet.arc.io/address/0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4)) was deployed from [Arc Studio](https://studio.arc.io/app/03aa1ed4-209d-44ee-b09c-2523a48babe3); its Studio app is in [`arc-studio/`](./arc-studio).
 - **Chainlink CRE:** evaluates port-call evidence from Digitraffic or VesselFinder, with labelled replay data for demos.
 - **Arkiv:** stores shipment, policy, and event records, including sealed document references.
 - **Swarm:** stores AES-256-GCM-encrypted bills of lading; decryption keys stay on the server.

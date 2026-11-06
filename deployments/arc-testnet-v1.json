@@ -1,0 +1,30 @@
+{
+  "network": "arc-testnet",
+  "chainId": 5042002,
+  "currency": "USDC",
+  "token": "0x3600000000000000000000000000000000000000",
+  "usdc": "0x3600000000000000000000000000000000000000",
+  "shareName": "Skjol USDC Pool",
+  "shareSymbol": "skjolUSDC",
+  "forwarder": "0x6E9EE680ef59ef64Aa8C7371279c27E496b5eDc1",
+  "forwarderKind": "MockKeystoneForwarder (CRE simulation)",
+  "deployer": "0x006B92D63938d9B9e3485077e7A72C9a9944364E",
+  "quoteSigner": "0x81986f54507a51BD6633020C58A2C115350b5803",
+  "uniswap": {
+    "factory": "0x7483847d46db2920dd64efa676cf72dcf765814f",
+    "router": "0xe27d5d256b370604f1ff060fb489c6a8e3f8a6d9"
+  },
+  "txs": {
+    "deploy": "0xb06776ea5a04dd5daa35ba87d69a9b04a81bda881fc918c23307f14289dddb16",
+    "setSimulationOperator": "0x8b90016e616a1c376839131ef87e3b30ba2e56f71423587aa7771f9da45e2932",
+    "approve": "0xdabd9c24665c83a5db158c7d8a9837b230e3c59f533032cb8e304647395fff34",
+    "fund": "0x0c9e20801b28a325866909eb3d68304d5a220985632cdf896ff23ad63e3172be",
+    "addLiquidity": "0xc04629be43abca883fec8507b0a6fdf7c765951fe9f8f1592c2fb34f3fd828d9"
+  },
+  "pool": "0xf9a17a1b28eecaa8ef15cae0473c39a9c9e91301",
+  "deployBlock": "70854912",
+  "simulationOperator": "0x006B92D63938d9B9e3485077e7A72C9a9944364E",
+  "poolBalance": "10000000",
+  "deployerShares": "10000000",
+  "sharePair": "0x74BC77B067091afd1A7AcB65c4d205002444cC5B"
+}
