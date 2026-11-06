@@ -35,9 +35,15 @@ export function CoverFlow({ aiEnabled }: { aiEnabled: boolean }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="space-y-2 max-w-2xl">
+          <p className="tag text-sea">Buy cover</p>
           <h1 className="font-display text-3xl sm:text-4xl font-semibold">Get arrival delay cover</h1>
-          <p className="text-ink-2 mt-1">Fixed payout if your vessel arrives more than 24 hours after the agreed deadline.</p>
+          <p className="text-ink-2">Fixed payout if your vessel arrives more than 24 hours after the agreed deadline.</p>
+          {!session && !loading && (
+            <p className="text-sm text-ink-2 rounded-lg bg-sea-soft/70 px-3 py-2">
+              Demo tip: choose <strong>Use demo wallet (test funds)</strong>, then use <strong>Step by step</strong> to upload a bill of lading and buy with test USDC.
+            </p>
+          )}
         </div>
         {session && (
           <div className="inline-flex rounded-full border border-line bg-[#fffdf8] p-1 text-sm">

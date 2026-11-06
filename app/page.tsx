@@ -8,6 +8,29 @@ const STEPS = [
   { n: "04", t: "Automatic payout", d: "If the recorded arrival is more than 24 hours late, the fixed payout is sent to your wallet. Missing or conflicting data never closes your cover." },
 ];
 
+const DEMO_PATH = [
+  {
+    href: "/cover",
+    label: "Get cover",
+    detail: "Connect with the demo wallet, switch to Step by step, upload a bill of lading, then buy with test USDC.",
+  },
+  {
+    href: "/integrations",
+    label: "How it’s built",
+    detail: "Live Arc pool, Chainlink CRE, Arkiv writers, Swarm postage status, and the MCP/x402 surfaces.",
+  },
+  {
+    href: "/capital",
+    label: "Capital",
+    detail: "Fund the shared pool, redeem free collateral, or trade vault shares on Uniswap V2.",
+  },
+  {
+    href: "/agent",
+    label: "Freight agent",
+    detail: "Agent finds paid port data, pays per call (Arc or Hedera x402), and can buy cover inside limits.",
+  },
+];
+
 const PROBLEMS = [
   { t: "Delay is the risk nobody covers", d: "Standard cargo and hull policies insure physical loss and damage. Loss caused by delay is a standard exclusion, so a late vessel usually leaves the importer with no claim at all." },
   { t: "Small importers feel it most", d: "A ship days behind schedule means empty shelves, idle staff and missed sales windows. Large shippers can absorb this; a small business carries it alone." },
@@ -20,43 +43,119 @@ const OPPORTUNITIES = [
   { t: "Parametric insurance", d: "Automated payouts triggered by objective data such as weather, storms and port disruptions. This is where Skjol starts.", highlight: true },
 ];
 
+const STACK = [
+  { t: "Arc", d: "Shared USDC capital pool with tradeable vault shares, reserved payouts and settlements." },
+  { t: "Chainlink CRE", d: "Workflow that fetches port-call records and submits arrival evidence." },
+  { t: "Arkiv + Swarm", d: "Queryable, encrypted application records and encrypted document storage." },
+];
+
 export default function Home() {
   return (
-    <div className="space-y-14">
-      <section className="grid lg:grid-cols-[1.2fr_1fr] gap-10 items-center pt-4">
-        <div className="space-y-6">
-          <p className="tag text-sea">Arrival delay cover for small importers</p>
+    <div className="space-y-16">
+      <section className="relative overflow-hidden rounded-2xl border border-line bg-[#fffdf8]/80 px-5 py-10 sm:px-8 sm:py-14 reveal">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.55]"
+          aria-hidden
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 70% at 88% 18%, rgba(29,107,116,0.14), transparent 55%), radial-gradient(ellipse 60% 50% at 12% 88%, rgba(217,72,15,0.08), transparent 50%)",
+          }}
+        />
+        <div className="relative max-w-3xl space-y-6">
+          <p className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-sea">Skjol</p>
           <h1 className="font-display text-4xl sm:text-6xl font-semibold leading-[1.05]">
             Late ship? <br />
             Get paid, <span className="text-signal">automatically.</span>
           </h1>
           <p className="text-lg text-ink-2 max-w-xl">
-            Skjol pays a fixed amount when your vessel’s recorded arrival at a port is more than 24 hours after the deadline in your contract. No claim forms.
+            Parametric arrival-delay cover for small importers: a fixed payout when the named vessel’s recorded arrival is more than 24 hours after the deadline in your contract. No claim forms.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href="/cover" className="btn btn-signal">
               Get cover
             </Link>
+            <Link href="/integrations" className="btn btn-ghost">
+              How it’s built
+            </Link>
           </div>
-        </div>
-        <div className="card p-6 space-y-4">
-          <div className="text-xs uppercase tracking-wide text-muted font-semibold">What’s covered</div>
-          <ul className="space-y-2 text-sm">
-            <li className="flex gap-2"><span className="text-ok">✓</span> Recorded arrival of the named vessel at the named port</li>
-            <li className="flex gap-2"><span className="text-ok">✓</span> More than 24 hours after your fixed, agreed deadline</li>
-            <li className="flex gap-2"><span className="text-ok">✓</span> Fixed payout, sent to your wallet</li>
-          </ul>
-          <div className="text-xs uppercase tracking-wide text-muted font-semibold pt-2">Not covered</div>
-          <ul className="space-y-2 text-sm text-ink-2">
-            <li className="flex gap-2"><span className="text-bad">✕</span> Container unloading, customs or terminal delays</li>
-            <li className="flex gap-2"><span className="text-bad">✕</span> Inland transport or final delivery</li>
-            <li className="flex gap-2"><span className="text-bad">✕</span> Damage or loss of goods</li>
-          </ul>
-          <p className="text-xs text-muted border-t border-line pt-3">A ship can arrive on time while your container is delivered late. This cover is about the ship.</p>
+          <p className="text-xs text-muted max-w-xl">
+            ETHGlobal Mumbai testnet demo — payments use test USDC. Start on Get cover with{" "}
+            <strong className="text-ink-2 font-semibold">Use demo wallet (test funds)</strong>.
+          </p>
         </div>
       </section>
 
-      <section className="space-y-5">
+      <section className="space-y-5 reveal" style={{ animationDelay: "80ms" }}>
+        <div className="space-y-2 max-w-2xl">
+          <p className="tag text-signal">Demo path</p>
+          <h2 className="font-display text-3xl sm:text-4xl font-semibold leading-tight">Where to click in the app</h2>
+          <p className="text-ink-2">
+            Four surfaces cover the product story for judges. Start with cover, then open the live stack status.
+          </p>
+        </div>
+        <ol className="grid sm:grid-cols-2 gap-x-8 gap-y-5">
+          {DEMO_PATH.map((item, i) => (
+            <li key={item.href} className="flex gap-4 items-start border-t border-line pt-4">
+              <span className="mono text-signal text-sm shrink-0 mt-0.5">{String(i + 1).padStart(2, "0")}</span>
+              <div className="space-y-1 min-w-0">
+                <Link href={item.href} className="font-display text-xl font-semibold hover:text-sea underline-offset-4 hover:underline">
+                  {item.label}
+                </Link>
+                <p className="text-sm text-ink-2">{item.detail}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="space-y-5 reveal" style={{ animationDelay: "120ms" }}>
+        <div className="space-y-2 max-w-2xl">
+          <p className="tag text-sea">How it works</p>
+          <h2 className="font-display text-3xl sm:text-4xl font-semibold leading-tight">Upload once. Cover settles itself.</h2>
+          <p className="text-ink-2">
+            The same path the importer takes in the app: document in, terms locked, port watched, payout when late.
+          </p>
+        </div>
+        <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-4">
+          {STEPS.map((s) => (
+            <li key={s.n} className="space-y-2 border-t border-line pt-4">
+              <div className="mono text-signal text-sm">{s.n}</div>
+              <div className="font-display text-xl font-semibold">{s.t}</div>
+              <p className="text-sm text-ink-2">{s.d}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="grid lg:grid-cols-2 gap-8 items-start reveal" style={{ animationDelay: "160ms" }}>
+        <div className="space-y-3">
+          <p className="tag text-sea">What’s covered</p>
+          <h2 className="font-display text-3xl font-semibold leading-tight">The ship’s arrival — not the container’s journey.</h2>
+          <p className="text-ink-2 text-sm max-w-md">
+            A ship can arrive on time while your container is delivered late. This cover is about the vessel at the named port.
+          </p>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-6 text-sm">
+          <div className="space-y-2">
+            <div className="text-xs uppercase tracking-wide text-muted font-semibold">Covered</div>
+            <ul className="space-y-2">
+              <li className="flex gap-2"><span className="text-ok shrink-0">✓</span> Recorded arrival of the named vessel at the named port</li>
+              <li className="flex gap-2"><span className="text-ok shrink-0">✓</span> More than 24 hours after your fixed, agreed deadline</li>
+              <li className="flex gap-2"><span className="text-ok shrink-0">✓</span> Fixed payout, sent to your wallet</li>
+            </ul>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs uppercase tracking-wide text-muted font-semibold">Not covered</div>
+            <ul className="space-y-2 text-ink-2">
+              <li className="flex gap-2"><span className="text-bad shrink-0">✕</span> Container unloading, customs or terminal delays</li>
+              <li className="flex gap-2"><span className="text-bad shrink-0">✕</span> Inland transport or final delivery</li>
+              <li className="flex gap-2"><span className="text-bad shrink-0">✕</span> Damage or loss of goods</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-5 reveal" style={{ animationDelay: "180ms" }}>
         <div className="space-y-2 max-w-2xl">
           <p className="tag text-signal">The problem</p>
           <h2 className="font-display text-3xl sm:text-4xl font-semibold leading-tight">When the ship is late, the importer pays.</h2>
@@ -64,24 +163,41 @@ export default function Home() {
             Marine insurance was built for ships that sink and cargo that breaks, not for ships that simply arrive late. That gap lands on the businesses least able to absorb it.
           </p>
         </div>
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-3 gap-6 md:gap-8">
           {PROBLEMS.map((p) => (
-            <div key={p.t} className="card p-5">
+            <div key={p.t} className="space-y-2 border-t border-line pt-4">
               <div className="font-display text-lg font-semibold">{p.t}</div>
-              <p className="text-sm text-ink-2 mt-2">{p.d}</p>
+              <p className="text-sm text-ink-2">{p.d}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {STEPS.map((s) => (
-          <div key={s.n} className="card p-5">
-            <div className="mono text-signal text-sm">{s.n}</div>
-            <div className="font-display text-xl font-semibold mt-1">{s.t}</div>
-            <p className="text-sm text-ink-2 mt-2">{s.d}</p>
+      <section className="space-y-5 reveal" style={{ animationDelay: "200ms" }}>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-2 max-w-2xl">
+            <p className="tag text-sea">Built on</p>
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold leading-tight">Settlement, evidence, and sealed documents.</h2>
+            <p className="text-ink-2">
+              Capital providers mint shares on deposit and can trade them on Uniswap —{" "}
+              <Link href="/capital" className="underline">
+                open Capital
+              </Link>
+              .
+            </p>
           </div>
-        ))}
+          <Link href="/integrations" className="btn btn-ghost !text-xs">
+            See exactly what is live →
+          </Link>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+          {STACK.map((s) => (
+            <div key={s.t} className="space-y-2 border-t border-line pt-4">
+              <div className="font-display text-xl font-semibold">{s.t}</div>
+              <p className="text-sm text-ink-2">{s.d}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="space-y-5">
@@ -130,19 +246,6 @@ export default function Home() {
         <p className="text-xs text-muted">
           Marine insurance includes cargo, hull, liability and offshore energy. Recreational insurance estimates may overlap with the broader market.
         </p>
-      </section>
-
-      <section className="card p-6 grid md:grid-cols-4 gap-6 text-sm">
-        <div className="md:col-span-1">
-          <div className="font-display text-xl font-semibold">Built on</div>
-          <Link href="/integrations" className="text-xs underline text-muted">See exactly what is live →</Link>
-        </div>
-        <div><strong>Arc</strong><p className="text-ink-2">Shared USDC capital pool with tradeable vault shares, reserved payouts and settlements.</p></div>
-        <div><strong>Chainlink CRE</strong><p className="text-ink-2">Workflow that fetches port-call records and submits arrival evidence.</p></div>
-        <div><strong>Arkiv + Swarm</strong><p className="text-ink-2">Queryable, encrypted application records and encrypted document storage.</p></div>
-        <div className="md:col-span-4 text-xs text-muted">
-          Capital providers mint shares on deposit and can trade them on Uniswap — <Link href="/capital" className="underline">open Capital</Link>.
-        </div>
       </section>
     </div>
   );
