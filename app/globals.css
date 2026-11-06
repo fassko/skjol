@@ -40,6 +40,18 @@ body {
   color: var(--ink);
 }
 
+a,
+button,
+summary,
+[role="button"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 body {
   font-family: var(--font-plex-sans), system-ui, sans-serif;
   background-image:
