@@ -169,16 +169,18 @@ contract ShipmentDelayPoolTest is Test {
     _buy("P1");
     uint256 free = pool.availableCapital();
     uint256 maxAssets = pool.maxWithdraw(lp);
-    assertEq(maxAssets, free);
+    // The sole funder keeps MIN_LIVE_SHARES while a payout is reserved.
+    assertLt(maxAssets, free);
+    assertApproxEqAbs(maxAssets, free - pool.exitValue(pool.MIN_LIVE_SHARES()), 2);
     vm.startPrank(lp);
     vm.expectRevert();
-    pool.withdraw(free + 1, lp, lp);
-    uint256 before = usdc.balanceOf(lp);
     pool.withdraw(free, lp, lp);
+    uint256 before = usdc.balanceOf(lp);
+    pool.withdraw(maxAssets, lp, lp);
     vm.stopPrank();
-    assertEq(usdc.balanceOf(lp), before + free);
-    assertEq(usdc.balanceOf(address(pool)), PAYOUT);
-    assertEq(pool.availableCapital(), 0);
+    assertEq(usdc.balanceOf(lp), before + maxAssets);
+    assertGe(usdc.balanceOf(address(pool)), PAYOUT);
+    assertGe(pool.totalSupply(), pool.MIN_LIVE_SHARES());
   }
 
   function test_FundMintsSharesAndPremiumRaisesNav() public {
@@ -426,12 +428,14 @@ contract ShipmentDelayPoolTest is Test {
   // ------------------------------------------- redeem blocked by reserved capital
   function test_RedeemPricedAsIfOpenPoliciesPay() public {
     _buy("P1");
-    uint256 shares = pool.balanceOf(lp);
-    assertEq(pool.maxRedeem(lp), shares);
+    uint256 all = pool.balanceOf(lp);
+    // The sole funder keeps MIN_LIVE_SHARES while a payout is reserved.
+    uint256 shares = pool.maxRedeem(lp);
+    assertEq(shares, all - pool.MIN_LIVE_SHARES());
     // Exit value excludes the reserve: the funder cannot take money owed to an open policy.
+    assertApproxEqAbs(pool.previewRedeem(all), 1_000e6 + PREMIUM - PAYOUT, 1);
+    assertLt(pool.previewRedeem(all), pool.convertToAssets(all));
     uint256 quoted = pool.previewRedeem(shares);
-    assertApproxEqAbs(quoted, 1_000e6 + PREMIUM - PAYOUT, 1);
-    assertLt(quoted, pool.convertToAssets(shares));
 
     vm.prank(lp);
     uint256 assetsOut = pool.redeem(shares, lp, lp);
@@ -439,6 +443,7 @@ contract ShipmentDelayPoolTest is Test {
     assertEq(pool.totalReserved(), PAYOUT);
     assertGe(usdc.balanceOf(address(pool)), PAYOUT);
     assertEq(pool.availableCapital(), usdc.balanceOf(address(pool)) - PAYOUT);
+    assertEq(pool.totalSupply(), pool.MIN_LIVE_SHARES());
   }
 
   function test_ReserveReleaseUnlocksRedeem() public {
@@ -645,6 +650,57 @@ contract ShipmentDelayPoolTest is Test {
     assertApproxEqAbs(got, 1_000e6, 2);
   }
 
+  function test_LastFunderCannotLeaveReserveWithoutShareholders() public {
+    ShipmentDelayPool.Quote memory q = _buy("P1");
+    uint256 shares = pool.balanceOf(lp);
+    assertEq(pool.maxRedeem(lp), shares - pool.MIN_LIVE_SHARES());
+    vm.prank(lp);
+    vm.expectRevert();
+    pool.redeem(shares, lp, lp);
+    _redeemMax(lp);
+    assertEq(pool.totalSupply(), pool.MIN_LIVE_SHARES());
+
+    // The policy closes unpaid: the released reserve goes to the remaining shares, and new
+    // deposits still mint shares at a fair price.
+    uint64 arrival = q.agreedArrivalDeadline - 1 hours;
+    vm.warp(arrival + 10 minutes);
+    _deliver(_report("P1", arrival, uint64(block.timestamp)));
+    assertEq(pool.maxRedeem(lp), pool.MIN_LIVE_SHARES());
+    address next = _addFunder("next", 100e6);
+    assertGt(pool.balanceOf(next), 0);
+    assertApproxEqAbs(pool.exitValue(pool.balanceOf(next)), 100e6, 1e3);
+  }
+
+  function _redeemMax(address who) internal returns (uint256 got) {
+    uint256 shares = pool.maxRedeem(who);
+    vm.prank(who);
+    got = pool.redeem(shares, who, who);
+  }
+
+  // ------------------------------------------------------------ deposit guards
+  function test_FirstDepositMinimumAndZeroShareDepositsRevert() public {
+    ShipmentDelayPool fresh = new ShipmentDelayPool(
+      address(relay), usdc, signer, 10_000e6, 6 hours, 1 hours, 30 days, "Skjol USDC Pool", "skjolUSDC"
+    );
+    address attacker = makeAddr("attacker");
+    usdc.mint(attacker, 10_000e6);
+    vm.startPrank(attacker);
+    usdc.approve(address(fresh), type(uint256).max);
+    vm.expectRevert(abi.encodeWithSelector(ShipmentDelayPool.FirstDepositTooSmall.selector, 1, 1e6));
+    fresh.deposit(1, attacker);
+    // Donation before any deposit: a victim's deposit that would mint 0 shares reverts instead.
+    usdc.transfer(address(fresh), 5_000e6);
+    vm.stopPrank();
+    address victim = makeAddr("victim");
+    usdc.mint(victim, 1_000e6);
+    vm.startPrank(victim);
+    usdc.approve(address(fresh), type(uint256).max);
+    vm.expectRevert(ShipmentDelayPool.ZeroShares.selector);
+    fresh.deposit(1_000e6, victim);
+    vm.stopPrank();
+    assertEq(usdc.balanceOf(victim), 1_000e6);
+  }
+
   // -------------------------------------------------- blocklisted beneficiary
   function test_BlocklistedBeneficiaryPayoutIsOwedAndClaimable() public {
     ShipmentDelayPool.Quote memory q = _buy("P1");
@@ -662,18 +718,22 @@ contract ShipmentDelayPoolTest is Test {
     assertEq(pool.totalAssets(), 1_000e6 + PREMIUM - PAYOUT);
     assertEq(pool.availableCapital(), 1_000e6 + PREMIUM - PAYOUT);
 
-    address fresh = makeAddr("fresh");
+    // The claim pays only the beneficiary, so the blocklist holds until the issuer lifts it.
     vm.prank(customer);
-    vm.expectRevert(); // a blocklisted sender cannot receive or send, but can direct the claim
-    pool.claimPayout(customer);
+    vm.expectRevert();
+    pool.claimPayout();
+    assertEq(pool.owedPayout(customer), PAYOUT);
+
+    usdc.setBlocked(customer, false);
+    uint256 before = usdc.balanceOf(customer);
     vm.prank(customer);
-    pool.claimPayout(fresh);
-    assertEq(usdc.balanceOf(fresh), PAYOUT);
+    pool.claimPayout();
+    assertEq(usdc.balanceOf(customer), before + PAYOUT);
     assertEq(pool.totalOwed(), 0);
 
     vm.prank(customer);
     vm.expectRevert(ShipmentDelayPool.NothingOwed.selector);
-    pool.claimPayout(fresh);
+    pool.claimPayout();
   }
 
   // ------------------------------------------------------------- ownership
@@ -688,5 +748,4 @@ contract ShipmentDelayPoolTest is Test {
     pool.acceptOwnership();
     assertEq(pool.owner(), next);
   }
-
 }

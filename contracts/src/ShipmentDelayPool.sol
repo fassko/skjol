@@ -38,6 +38,9 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
   uint8 public constant REPORT_VERSION = 1;
   /// @notice Tolerated clock skew for evidence observed slightly "ahead" of the block time.
   uint64 public constant MAX_FUTURE_SKEW = 5 minutes;
+  /// @notice Shares that must stay outstanding while any payout is reserved, so open reserves
+  ///         always belong to someone. Also the minimum first deposit (in token units).
+  uint256 public constant MIN_LIVE_SHARES = 1e6;
 
   bytes32 public constant QUOTE_TYPEHASH = keccak256(
     "Quote(bytes32 quoteId,bytes32 policyId,address beneficiary,uint32 vesselImo,bytes32 voyageRefHash,bytes32 destinationLocode,uint8 eventType,uint64 earliestArrival,uint64 agreedArrivalDeadline,uint32 delayThreshold,uint128 premium,uint128 payout,bytes32 termsHash,uint64 purchaseCutoff,uint64 quoteExpiry)"
@@ -156,7 +159,7 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
   event QuoteSignerUpdated(address indexed signer);
   event SimulationOperatorUpdated(address indexed operator);
   event PayoutDeferred(bytes32 indexed policyId, address indexed beneficiary, uint128 amount);
-  event PayoutClaimed(address indexed beneficiary, address indexed to, uint256 amount);
+  event PayoutClaimed(address indexed beneficiary, uint256 amount);
 
   // ------------------------------------------------------------------- errors
   error NotBeneficiary();
@@ -179,6 +182,8 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
   error ZeroAddress();
   error ReportIdentityNotConfigured();
   error NothingOwed();
+  error ZeroShares();
+  error FirstDepositTooSmall(uint256 assets, uint256 minimum);
 
   constructor(
     address forwarder,
@@ -232,11 +237,18 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
   }
 
   function maxWithdraw(address owner) public view override returns (uint256) {
-    return _toExitAssets(balanceOf(owner), Math.Rounding.Floor);
+    return _toExitAssets(maxRedeem(owner), Math.Rounding.Floor);
   }
 
+  /// @dev While payouts are reserved, MIN_LIVE_SHARES must stay outstanding: the last funder
+  ///      cannot leave a reserve with no shareholder to receive it if the policy closes unpaid.
   function maxRedeem(address owner) public view override returns (uint256) {
-    return availableCapital() == 0 ? 0 : balanceOf(owner);
+    if (availableCapital() == 0) return 0;
+    uint256 bal = balanceOf(owner);
+    if (totalReserved == 0) return bal;
+    uint256 supply = totalSupply();
+    uint256 redeemable = supply > MIN_LIVE_SHARES ? supply - MIN_LIVE_SHARES : 0;
+    return bal < redeemable ? bal : redeemable;
   }
 
   function previewWithdraw(uint256 assets) public view override returns (uint256) {
@@ -262,6 +274,14 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
 
   function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256) {
     return super.mint(shares, receiver);
+  }
+
+  /// @dev Rejects deposits that would mint no shares (donation / inflation griefing), and a first
+  ///      deposit smaller than MIN_LIVE_SHARES token units.
+  function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
+    if (shares == 0) revert ZeroShares();
+    if (totalSupply() == 0 && assets < MIN_LIVE_SHARES) revert FirstDepositTooSmall(assets, MIN_LIVE_SHARES);
+    super._deposit(caller, receiver, assets, shares);
   }
 
   function withdraw(uint256 assets, address receiver, address owner) public override nonReentrant returns (uint256) {
@@ -430,15 +450,15 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
     }
   }
 
-  /// @notice Claim payouts whose transfer failed, to any address the beneficiary chooses.
-  function claimPayout(address to) external nonReentrant {
+  /// @notice Claim a payout whose transfer failed. Pays only the beneficiary, so a token
+  ///         blocklist is respected: a blocked address can claim once the issuer unblocks it.
+  function claimPayout() external nonReentrant {
     uint256 amount = owedPayout[msg.sender];
     if (amount == 0) revert NothingOwed();
-    if (to == address(0)) revert ZeroAddress();
     owedPayout[msg.sender] = 0;
     totalOwed -= amount;
-    token.safeTransfer(to, amount);
-    emit PayoutClaimed(msg.sender, to, amount);
+    token.safeTransfer(msg.sender, amount);
+    emit PayoutClaimed(msg.sender, amount);
   }
 
   function _releaseReserve(bytes32 policyId, uint128 amount) private {
