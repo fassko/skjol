@@ -11,7 +11,7 @@ Skjol's USDC pool was tested, deployed and given its own web app in Arc Studio. 
 `ShipmentDelayPool` is an ERC-4626 vault over Arc USDC that sells fixed-payout arrival delay cover:
 
 1. **Funding.** Funders deposit USDC and get `skjolUSDC` shares. Premiums raise the share value; payouts lower it.
-2. **Conditional reserve.** Each purchase checks an EIP-712 quote signed by Skjol's underwriter, takes the premium, and reserves the full payout. Redeems are capped by free capital (`balance − totalReserved`), so a funder cannot withdraw money owed to an open policy.
+2. **Conditional reserve.** Each purchase checks an EIP-712 quote signed by Skjol's underwriter, takes the premium, and reserves the full payout. Exits are priced on free capital (`balance − totalReserved − owed`), so a funder cannot withdraw money owed to an open policy or leave ahead of a payout.
 3. **Automated settlement.** A Chainlink CRE workflow reads the port-call record and calls `onReport` with evidence only: arrival time, observed time, evidence digest, source id, bound to this chain and pool. The contract recomputes the outcome from the locked terms. If the vessel arrived more than 24 hours after the deadline, it pays the fixed USDC payout to the importer. Otherwise it releases the reserve back to funders.
 4. **Fallback.** When no evidence can ever arrive, the owner can resolve a policy, but only 30 days after the deadline plus threshold.
 
@@ -48,13 +48,17 @@ Constructor: CRE simulation forwarder `0x6E9E…eDc1`, Arc USDC `0x3600…0000`,
 
 Architecture diagram: [`docs/architecture.svg`](./architecture.svg), and **How it works** in the Studio app.
 
-## Open items from Arc Studio's review
+## Arc Studio's review, and what we changed
 
-- The pool does not yet check the CRE workflow id or author, and the simulation gate uses `tx.origin`. Before a production forwarder: call `setExpectedWorkflowId` or `setExpectedAuthor`, and clear `simulationOperator`.
-- The 24-hour threshold is part of the signed quote, so the quote signer must keep signing 24 h.
-- If a beneficiary is USDC-blocklisted, the payout transfer reverts and the policy stays active until a no-pay review.
-- Share value counts reserved capital as pool assets. A funder can redeem free capital ahead of a payout, leaving later funders to absorb it.
-- Ownership transfer is single-step.
+The review raised five items. The contract source in [`arc-studio/contracts/`](../arc-studio/contracts/) and [`contracts/src/`](../contracts/src/) now fixes four of them. Each fix has a test, and the Studio suite has 39 passing tests. These fixes take effect when the pool is redeployed. The pool at `0x2beb…8fa4` still runs the reviewed version.
+
+| Review finding | Fix | Test |
+|---|---|---|
+| Share value counts reserved capital, so a funder can redeem ahead of a payout and leave it to the funders who stay | Exits are priced on `availableCapital()` (assets − reserved − owed): `previewRedeem`, `previewWithdraw`, `maxWithdraw`, new `exitValue`. Deposits are still priced on gross assets, so nobody can buy in just before reserves are released. Every share can exit at any time at the worst-case price. A funder who wants full value while policies are open can sell on the Uniswap pair. | `test_FunderCannotExitAheadOfPayout`, `test_ExitWhileOpenLeavesReserveToStayers`, `test_DepositJustBeforeReleaseIsNotProfitable`, `test_RedeemPricedAsIfOpenPoliciesPay` |
+| A USDC-blocklisted beneficiary makes the payout revert, so the policy stays open | The payout uses `trySafeTransfer`. If the transfer fails, the amount moves to `owedPayout[beneficiary]`, the policy settles and the reserve is released. The beneficiary calls `claimPayout(to)` to send it to any address. Owed money is excluded from pool assets. | `test_BlocklistedBeneficiaryPayoutIsOwedAndClaimable` |
+| The workflow id and author aren't checked, and the simulation gate uses `tx.origin` | Reports now fail closed: `onReport` reverts with `ReportIdentityNotConfigured` unless the simulation operator or an expected workflow id or author is set. A forwarder alone is no longer enough. The `tx.origin` gate stays only while `simulationOperator` is set, for the CRE simulation forwarder. | `test_RejectsReportsWithoutWorkflowIdentity`, `test_SimulationOperatorGate` |
+| Ownership transfer is single-step | `ReceiverTemplate` uses `Ownable2Step`. The new owner has to call `acceptOwnership`. | `test_OwnershipTransferIsTwoStep` |
+| The 24-hour threshold is part of the signed quote | Not changed. The threshold belongs to each product and is fixed in the signed quote on purpose. The quote signer is the control. | — |
 
 ## Run the Studio app locally
 

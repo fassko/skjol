@@ -16,7 +16,9 @@ import {ReceiverTemplate} from "./cre/ReceiverTemplate.sol";
 ///
 /// Capital providers deposit the settlement token and receive transferable ERC-20
 /// vault shares (ERC-4626). Premiums raise share NAV; claim payouts lower it.
-/// Redeems are capped by free capital (balance minus reserved payouts).
+/// Exits are priced as if every open policy pays out (balance minus reserved payouts), so a
+/// funder cannot redeem ahead of a payout and leave it to the funders who stay. Deposits are
+/// priced at gross assets, so nobody can buy in just before open reserves are released.
 ///
 /// Insured event (exactly one): the RECORDED ARRIVAL of the named vessel (IMO) at the named
 /// destination port (UN/LOCODE). The policy pays a fixed amount when the recorded arrival time is
@@ -118,6 +120,10 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
   address public simulationOperator;
 
   uint256 public totalReserved;
+  /// @notice Payouts whose transfer failed (e.g. the beneficiary is blocklisted by the token).
+  ///         Owed to the beneficiary, excluded from pool assets, claimable with `claimPayout`.
+  uint256 public totalOwed;
+  mapping(address => uint256) public owedPayout;
   mapping(bytes32 => Policy) private s_policies;
   mapping(bytes32 => bool) public quoteUsed;
   mapping(bytes32 => bool) public reportProcessed;
@@ -149,6 +155,8 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
   event ConfigUpdated(bytes32 indexed key, uint256 value);
   event QuoteSignerUpdated(address indexed signer);
   event SimulationOperatorUpdated(address indexed operator);
+  event PayoutDeferred(bytes32 indexed policyId, address indexed beneficiary, uint128 amount);
+  event PayoutClaimed(address indexed beneficiary, address indexed to, uint256 amount);
 
   // ------------------------------------------------------------------- errors
   error NotBeneficiary();
@@ -169,6 +177,8 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
   error ReviewNotOpen();
   error PolicyNotActive();
   error ZeroAddress();
+  error ReportIdentityNotConfigured();
+  error NothingOwed();
 
   constructor(
     address forwarder,
@@ -202,25 +212,48 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
     emit PoolFunded(msg.sender, amount, shares);
   }
 
-  function availableCapital() public view returns (uint256) {
+  /// @notice Gross pool assets: token balance minus payouts already owed to beneficiaries.
+  ///         Used for deposits and mints.
+  function totalAssets() public view override returns (uint256) {
     uint256 bal = token.balanceOf(address(this));
-    return bal > totalReserved ? bal - totalReserved : 0;
+    return bal > totalOwed ? bal - totalOwed : 0;
   }
 
-  /// @dev Redeems cannot pull capital reserved for active policies.
+  /// @notice Capital not reserved for open policies or owed to beneficiaries. This is also the
+  ///         exit value of the whole pool: withdrawals assume every open policy pays out.
+  function availableCapital() public view returns (uint256) {
+    uint256 gross = totalAssets();
+    return gross > totalReserved ? gross - totalReserved : 0;
+  }
+
+  /// @notice Assets `shares` would receive on exit (worst case: all open policies pay).
+  function exitValue(uint256 shares) public view returns (uint256) {
+    return _toExitAssets(shares, Math.Rounding.Floor);
+  }
+
   function maxWithdraw(address owner) public view override returns (uint256) {
-    uint256 ownerAssets = _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
-    uint256 free = availableCapital();
-    return ownerAssets < free ? ownerAssets : free;
+    return _toExitAssets(balanceOf(owner), Math.Rounding.Floor);
   }
 
-  /// @dev Shares redeemable such that underlying assets stay within free capital.
   function maxRedeem(address owner) public view override returns (uint256) {
-    uint256 free = availableCapital();
-    if (free == 0) return 0;
-    uint256 freeShares = _convertToShares(free, Math.Rounding.Floor);
-    uint256 bal = balanceOf(owner);
-    return bal < freeShares ? bal : freeShares;
+    return availableCapital() == 0 ? 0 : balanceOf(owner);
+  }
+
+  function previewWithdraw(uint256 assets) public view override returns (uint256) {
+    return _toExitShares(assets, Math.Rounding.Ceil);
+  }
+
+  function previewRedeem(uint256 shares) public view override returns (uint256) {
+    return _toExitAssets(shares, Math.Rounding.Floor);
+  }
+
+  /// @dev Same virtual-offset formula as ERC4626, priced on `availableCapital()`.
+  function _toExitAssets(uint256 shares, Math.Rounding rounding) private view returns (uint256) {
+    return shares.mulDiv(availableCapital() + 1, totalSupply() + 10 ** _decimalsOffset(), rounding);
+  }
+
+  function _toExitShares(uint256 assets, Math.Rounding rounding) private view returns (uint256) {
+    return assets.mulDiv(totalSupply() + 10 ** _decimalsOffset(), availableCapital() + 1, rounding);
   }
 
   function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256) {
@@ -330,7 +363,13 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
   function onReport(bytes calldata metadata, bytes calldata report) external override {
     // DEMO-ONLY: see `simulationOperator`. tx.origin is used deliberately and only as an
     // additional restriction while the simulation forwarder cannot authenticate workflows.
-    if (simulationOperator != address(0) && tx.origin != simulationOperator) revert SimulationOriginRejected();
+    // Fail closed: a report is only accepted when either the demo operator gate or a CRE
+    // workflow identity check (id or author) is configured. A forwarder alone is not enough.
+    if (simulationOperator != address(0)) {
+      if (tx.origin != simulationOperator) revert SimulationOriginRejected();
+    } else if (getExpectedWorkflowId() == bytes32(0) && getExpectedAuthor() == address(0)) {
+      revert ReportIdentityNotConfigured();
+    }
     _checkReportOrigin(metadata);
     _processReport(report);
   }
@@ -373,12 +412,33 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
 
     if (r.arrivalTime > lateBoundary) {
       p.status = Status.PaidOut;
-      token.safeTransfer(p.beneficiary, p.payout);
+      _pay(r.policyId, p.beneficiary, p.payout);
       emit PolicyPaidOut(r.policyId, p.beneficiary, p.payout, r.arrivalTime, uint64(delay));
     } else {
       p.status = Status.ClosedNoPayout;
       emit PolicyClosedNoPayout(r.policyId, r.arrivalTime, delay);
     }
+  }
+
+  /// @dev Pays the beneficiary. If the token refuses the transfer (e.g. a blocklisted address),
+  ///      the payout is owed instead, so the policy still settles and the reserve is released.
+  function _pay(bytes32 policyId, address beneficiary, uint128 amount) private {
+    if (!token.trySafeTransfer(beneficiary, amount)) {
+      owedPayout[beneficiary] += amount;
+      totalOwed += amount;
+      emit PayoutDeferred(policyId, beneficiary, amount);
+    }
+  }
+
+  /// @notice Claim payouts whose transfer failed, to any address the beneficiary chooses.
+  function claimPayout(address to) external nonReentrant {
+    uint256 amount = owedPayout[msg.sender];
+    if (amount == 0) revert NothingOwed();
+    if (to == address(0)) revert ZeroAddress();
+    owedPayout[msg.sender] = 0;
+    totalOwed -= amount;
+    token.safeTransfer(to, amount);
+    emit PayoutClaimed(msg.sender, to, amount);
   }
 
   function _releaseReserve(bytes32 policyId, uint128 amount) private {
@@ -397,7 +457,7 @@ contract ShipmentDelayPool is ReceiverTemplate, ERC4626, EIP712, ReentrancyGuard
     p.settledAt = uint64(block.timestamp);
     p.settlementEvidence = reasonHash;
     _releaseReserve(policyId, p.payout);
-    if (pay) token.safeTransfer(p.beneficiary, p.payout);
+    if (pay) _pay(policyId, p.beneficiary, p.payout);
     emit PolicyResolvedByReview(policyId, pay, reasonHash);
   }
 

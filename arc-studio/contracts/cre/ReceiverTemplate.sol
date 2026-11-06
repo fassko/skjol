@@ -4,12 +4,13 @@ pragma solidity ^0.8.0;
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IReceiver} from "./IReceiver.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /// @title ReceiverTemplate - Abstract receiver with optional permission controls
 /// @notice Copied from the Chainlink CRE documentation ("Building Consumer Contracts",
 ///         section 3.2, last updated 2026-05-08). Logic unchanged; `onReport` is marked
 ///         `virtual` so the consumer can add a demo-only simulation gate.
-abstract contract ReceiverTemplate is IReceiver, Ownable {
+abstract contract ReceiverTemplate is IReceiver, Ownable2Step {
   address private s_forwarderAddress;
   address private s_expectedAuthor;
   bytes10 private s_expectedWorkflowName;
@@ -42,7 +43,7 @@ abstract contract ReceiverTemplate is IReceiver, Ownable {
     return s_forwarderAddress;
   }
 
-  function getExpectedAuthor() external view returns (address) {
+  function getExpectedAuthor() public view returns (address) {
     return s_expectedAuthor;
   }
 
@@ -50,7 +51,7 @@ abstract contract ReceiverTemplate is IReceiver, Ownable {
     return s_expectedWorkflowName;
   }
 
-  function getExpectedWorkflowId() external view returns (bytes32) {
+  function getExpectedWorkflowId() public view returns (bytes32) {
     return s_expectedWorkflowId;
   }
 

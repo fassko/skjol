@@ -8,8 +8,22 @@ import {IReceiver} from "../src/cre/IReceiver.sol";
 import {LocalReportRelay} from "../src/test-support/LocalReportRelay.sol";
 import {MockUSDC} from "../src/test-support/MockUSDC.sol";
 
+/// USDC-style token that refuses transfers to blocklisted addresses.
+contract BlocklistUSDC is MockUSDC {
+  mapping(address => bool) public blocked;
+
+  function setBlocked(address a, bool b) external {
+    blocked[a] = b;
+  }
+
+  function _update(address from, address to, uint256 value) internal override {
+    require(!blocked[from] && !blocked[to], "blocklisted");
+    super._update(from, to, value);
+  }
+}
+
 contract ShipmentDelayPoolTest is Test {
-  MockUSDC usdc;
+  BlocklistUSDC usdc;
   LocalReportRelay relay;
   ShipmentDelayPool pool;
 
@@ -23,6 +37,7 @@ contract ShipmentDelayPoolTest is Test {
   uint32 constant THRESHOLD = 24 hours;
   uint32 constant IMO = 9393266;
   bytes32 constant LOCODE = bytes32("FIHEL");
+  bytes32 constant WORKFLOW_ID = keccak256("skjol-arrival-evaluator");
 
   uint64 t0;
 
@@ -30,11 +45,13 @@ contract ShipmentDelayPoolTest is Test {
     vm.warp(1_800_000_000);
     t0 = uint64(block.timestamp);
     signer = vm.addr(signerPk);
-    usdc = new MockUSDC();
+    usdc = new BlocklistUSDC();
     relay = new LocalReportRelay();
     pool = new ShipmentDelayPool(
       address(relay), usdc, signer, 10_000e6, 6 hours, 1 hours, 30 days, "Skjol USDC Pool", "skjolUSDC"
     );
+
+    pool.setExpectedWorkflowId(WORKFLOW_ID);
 
     usdc.mint(lp, 1_000e6);
     vm.startPrank(lp);
@@ -101,7 +118,26 @@ contract ShipmentDelayPoolTest is Test {
   }
 
   function _deliver(bytes memory report) internal {
-    relay.report(address(pool), "", report);
+    relay.report(address(pool), _metadata(), report);
+  }
+
+  function _metadata() internal view returns (bytes memory) {
+    return abi.encodePacked(WORKFLOW_ID, bytes10("skjol"), address(this));
+  }
+
+  function _addFunder(string memory name, uint256 amount) internal returns (address who) {
+    who = makeAddr(name);
+    usdc.mint(who, amount);
+    vm.startPrank(who);
+    usdc.approve(address(pool), type(uint256).max);
+    pool.deposit(amount, who);
+    vm.stopPrank();
+  }
+
+  function _redeemAll(address who) internal returns (uint256 got) {
+    uint256 shares = pool.balanceOf(who);
+    vm.prank(who);
+    got = pool.redeem(shares, who, who);
   }
 
   // --------------------------------------------------- purchase & collateral
@@ -247,7 +283,7 @@ contract ShipmentDelayPoolTest is Test {
     bytes memory r = _report("P1", t0 + 12 days, t0 + 12 days);
     vm.warp(t0 + 12 days);
     vm.expectRevert(abi.encodeWithSelector(ReceiverTemplate.InvalidSender.selector, address(this), address(relay)));
-    pool.onReport("", r);
+    pool.onReport(_metadata(), r);
   }
 
   function test_RejectsReportBoundToOtherChainOrContract() public {
@@ -375,8 +411,120 @@ contract ShipmentDelayPoolTest is Test {
     _deliver(r);
     // Same call with the operator as tx.origin succeeds.
     vm.prank(address(this), operator);
-    relay.report(address(pool), "", r);
+    relay.report(address(pool), _metadata(), r);
     assertEq(uint8(pool.getPolicy("P1").status), uint8(ShipmentDelayPool.Status.PaidOut));
+  }
+
+  // ------------------------------------------------- report identity (fail closed)
+  function test_RejectsReportsWithoutWorkflowIdentity() public {
+    ShipmentDelayPool.Quote memory q = _buy("P1");
+    uint64 arrival = q.agreedArrivalDeadline + THRESHOLD + 1;
+    vm.warp(arrival + 10 minutes);
+    pool.setExpectedWorkflowId(bytes32(0));
+    vm.expectRevert(ShipmentDelayPool.ReportIdentityNotConfigured.selector);
+    _deliver(_report("P1", arrival, uint64(block.timestamp)));
+
+    // A report from another workflow is rejected once the identity is set again.
+    pool.setExpectedWorkflowId(WORKFLOW_ID);
+    bytes memory other = abi.encodePacked(keccak256("other-workflow"), bytes10("x"), address(this));
+    vm.expectRevert();
+    relay.report(address(pool), other, _report("P1", arrival, uint64(block.timestamp)));
+
+    _deliver(_report("P1", arrival, uint64(block.timestamp)));
+    assertEq(uint8(pool.getPolicy("P1").status), uint8(ShipmentDelayPool.Status.PaidOut));
+  }
+
+  // ------------------------------------------------------ redeem-ahead (NAV)
+  function test_FunderCannotExitAheadOfPayout() public {
+    address lp2 = _addFunder("lp2", 1_000e6);
+    ShipmentDelayPool.Quote memory q = _buy("P1");
+
+    // lp exits while the policy is open: priced as if it pays out.
+    uint256 lpShares = pool.balanceOf(lp);
+    uint256 lpGot = _redeemAll(lp);
+
+    uint64 arrival = q.agreedArrivalDeadline + THRESHOLD + 1;
+    vm.warp(arrival + 10 minutes);
+    _deliver(_report("P1", arrival, uint64(block.timestamp)));
+
+    // lp2 stayed and absorbed the payout, yet gets at least as much per share.
+    uint256 lp2Shares = pool.balanceOf(lp2);
+    uint256 lp2Got = _redeemAll(lp2);
+    assertGe(lp2Got * lpShares, lpGot * lp2Shares);
+    // Together the funders got their capital plus premium minus payout.
+    assertApproxEqAbs(lpGot + lp2Got, 2_000e6 + PREMIUM - PAYOUT, 2);
+  }
+
+  function test_ExitWhileOpenLeavesReserveToStayers() public {
+    address lp2 = _addFunder("lp2", 1_000e6);
+    ShipmentDelayPool.Quote memory q = _buy("P1");
+    uint256 lpGot = _redeemAll(lp);
+    // Exit value = share of (assets - reserved): (2025 - 500) / 2 = 762.5
+    assertApproxEqAbs(lpGot, (2_000e6 + PREMIUM - PAYOUT) / 2, 2);
+
+    // Policy closes on time: the released reserve goes to the funder who stayed.
+    uint64 arrival = q.agreedArrivalDeadline - 1 hours;
+    vm.warp(arrival + 10 minutes);
+    _deliver(_report("P1", arrival, uint64(block.timestamp)));
+    uint256 lp2Got = _redeemAll(lp2);
+    assertApproxEqAbs(lp2Got, 2_000e6 + PREMIUM - lpGot, 2);
+  }
+
+  function test_DepositJustBeforeReleaseIsNotProfitable() public {
+    ShipmentDelayPool.Quote memory q = _buy("P1");
+    uint64 arrival = q.agreedArrivalDeadline - 1 hours;
+    vm.warp(arrival + 5 minutes);
+    // Deposit priced at gross assets; immediate exit is worth less than the deposit.
+    address late = _addFunder("late", 1_000e6);
+    assertLt(pool.exitValue(pool.balanceOf(late)), 1_000e6);
+    _deliver(_report("P1", arrival, uint64(block.timestamp)));
+    // After the reserve is released the late funder gets back about what they put in, no windfall.
+    uint256 got = _redeemAll(late);
+    assertApproxEqAbs(got, 1_000e6, 2);
+  }
+
+  // -------------------------------------------------- blocklisted beneficiary
+  function test_BlocklistedBeneficiaryPayoutIsOwedAndClaimable() public {
+    ShipmentDelayPool.Quote memory q = _buy("P1");
+    usdc.setBlocked(customer, true);
+    uint64 arrival = q.agreedArrivalDeadline + THRESHOLD + 1;
+    vm.warp(arrival + 10 minutes);
+    _deliver(_report("P1", arrival, uint64(block.timestamp)));
+
+    // The policy settles, the reserve is released, and the payout is held for the customer.
+    assertEq(uint8(pool.getPolicy("P1").status), uint8(ShipmentDelayPool.Status.PaidOut));
+    assertEq(pool.totalReserved(), 0);
+    assertEq(pool.owedPayout(customer), PAYOUT);
+    assertEq(pool.totalOwed(), PAYOUT);
+    // Owed money is not pool capital.
+    assertEq(pool.totalAssets(), 1_000e6 + PREMIUM - PAYOUT);
+    assertEq(pool.availableCapital(), 1_000e6 + PREMIUM - PAYOUT);
+
+    address fresh = makeAddr("fresh");
+    vm.prank(customer);
+    vm.expectRevert(); // a blocklisted sender cannot receive or send, but can direct the claim
+    pool.claimPayout(customer);
+    vm.prank(customer);
+    pool.claimPayout(fresh);
+    assertEq(usdc.balanceOf(fresh), PAYOUT);
+    assertEq(pool.totalOwed(), 0);
+
+    vm.prank(customer);
+    vm.expectRevert(ShipmentDelayPool.NothingOwed.selector);
+    pool.claimPayout(fresh);
+  }
+
+  // ------------------------------------------------------------- ownership
+  function test_OwnershipTransferIsTwoStep() public {
+    address next = makeAddr("nextOwner");
+    pool.transferOwnership(next);
+    assertEq(pool.owner(), address(this));
+    vm.prank(makeAddr("someoneElse"));
+    vm.expectRevert();
+    pool.acceptOwnership();
+    vm.prank(next);
+    pool.acceptOwnership();
+    assertEq(pool.owner(), next);
   }
 
   function test_SupportsReceiverInterface() public view {
