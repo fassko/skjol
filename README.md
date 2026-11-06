@@ -16,7 +16,7 @@ Built for ETHGlobal Mumbai on **Arc** (settlement), **Arkiv** (application DB), 
 | Hedera: AI Agents That Pay (x402) | [Hedera x402](#hedera-x402-the-agent-pays-for-port-data) below, [`docs/freight-agent-x402.md`](./docs/freight-agent-x402.md) |
 | Arkiv: Build on Arkiv + Arkiv/Swarm bonus | [Arkiv section](#arkiv-writers--one-query-you-can-run) below, [`arkiv/`](./arkiv) |
 | Uniswap: Build with Uniswap | [Uniswap section](#uniswap-tradeable-pool-shares) below, [`FEEDBACK.md`](./FEEDBACK.md) |
-| Chainlink: Best Workflow with CRE | [`cre/README.md`](./cre/README.md) |
+| Chainlink: Best Workflow with CRE | [`cre/README.md`](./cre/README.md#verified-run-late-arrival-payout-on-arc-testnet): CLI simulation with `--broadcast` that paid out on Arc ([tx](https://explorer.testnet.arc.io/tx/0xc6c0d16e259db9553826f5a7095683b0f858a550d71c48bbf074ef9be07450cc)) |
 
 ## How it works
 
