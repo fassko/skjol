@@ -325,7 +325,7 @@ export default function IntegrationsPage() {
           connects with a token from the agent page.
         </p>
         <p className="text-sm text-ink-2 max-w-3xl">
-          Judges: skim the system diagram, then confirm Arc pool figures, Swarm postage status, and the x402 / Hedera rails.
+          Skim the system diagram, then confirm Arc pool figures, Swarm postage status, and the x402 / Hedera rails.
           Buy cover from{" "}
           <Link href="/cover" className="underline">
             Get cover
