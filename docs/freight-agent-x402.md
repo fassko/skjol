@@ -134,7 +134,8 @@ Once `HEDERA_PAYEE_ACCOUNT_ID` is set, every paid endpoint also offers the Heder
 | Arc Gateway deposit | [`0x50ad3c51…709c`](https://explorer.testnet.arc.io/tx/0x50ad3c51f61e987d3918de631761b7171cac4a37f9dbad1e66e4ba66e530709c) | Demo wallet funds 1 USDC of Gateway balance |
 | Arc nanopayment | Gateway transfer `305f2ff8-b2db-4de0-b53c-5e9c66130ffa` | `scripts/x402-smoke.mts`, 0.01 USDC |
 | Arc nanopayment | Gateway transfer `a364265a-0801-47d4-b892-5e9a685b24ac` | Paid by the agent from chat, ledger entity on Arkiv |
-| Hedera USDC | _add after Hedera setup_ | HashScan link from the agent's receipt |
+| Hedera USDC (agent) | [`0.0.9185802@1793886646.362665794`](https://hashscan.io/testnet/transaction/0.0.9185802-1793886646-362665794) | Freight agent on the live app: `discoverServices` → `callPaidService` (rail `hedera`), no human step. 0.01 USDC (`0.0.429274`) from agent `0.0.11322969` to payee `0.0.11322970`; x402.org facilitator `0.0.9185802` paid the fee. Audit: [HCS `0.0.11322971` #2](https://hashscan.io/testnet/topic/0.0.11322971/message/2) |
+| Hedera USDC (script) | [`0.0.9185802@1793886608.444083441`](https://hashscan.io/testnet/transaction/0.0.9185802-1793886608-444083441) | `RAIL=hedera scripts/x402-smoke.mts` against the live app, 0.01 USDC |
 
 ## Demo script (phone screen, about 3 minutes)
 
