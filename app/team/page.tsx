@@ -5,7 +5,7 @@ import portrait from "../../public/team/kristaps-grinbergs.jpg";
 export const metadata: Metadata = {
   title: "Team — Skjol",
   description:
-    "Meet Kristaps Grinbergs, the developer building Skjol’s arrival delay protection for small importers.",
+    "Kristaps Grinbergs builds Skjol. He leads developer relations at Flare and was technical co-founder of Qminder.",
 };
 
 const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sea";
@@ -31,7 +31,11 @@ export default function TeamPage() {
           <p className="text-ink-2 leading-relaxed">
             I’m building Skjol to help small importers handle the cost of late
             shipments: clear cover terms, verified arrival data, and automatic
-            payouts when a vessel is delayed.
+            payouts when a vessel is delayed. I lead developer relations at{" "}
+            <a href="https://flare.network" className={`text-sea underline underline-offset-4 hover:text-ink ${focusRing}`}>
+              Flare
+            </a>
+            , and before that I was technical co-founder of Qminder.
           </p>
           <div className="flex flex-wrap gap-x-5 gap-y-3 text-sm">
             <a href="mailto:fassko@gmail.com" className={`text-sea underline underline-offset-4 hover:text-ink ${focusRing}`}>
@@ -39,6 +43,17 @@ export default function TeamPage() {
             </a>
             <a href="https://kristaps.me" className={`text-sea underline underline-offset-4 hover:text-ink ${focusRing}`}>
               kristaps.me
+            </a>
+            <a href="https://x.com/fassko" target="_blank" rel="noopener noreferrer" className={`text-sea underline underline-offset-4 hover:text-ink ${focusRing}`}>
+              X
+            </a>
+            <a
+              href="https://www.linkedin.com/in/kristapsgrinbergs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`text-sea underline underline-offset-4 hover:text-ink ${focusRing}`}
+            >
+              LinkedIn
             </a>
           </div>
         </div>

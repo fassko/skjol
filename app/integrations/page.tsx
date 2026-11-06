@@ -337,13 +337,11 @@ export default function IntegrationsPage() {
           .
         </p>
       </div>
+      <ArchitectureDiagram />
       <ErrorNote error={error} />
-      {!d ? (
-        <Spinner />
-      ) : (
+      {!d && !error ? <Spinner /> : null}
+      {d ? (
         <>
-          <ArchitectureDiagram />
-
           <PoolBlock
             title="Arc — USDC capital pool & share vault"
             currency="USDC"
@@ -589,7 +587,7 @@ export default function IntegrationsPage() {
             </p>
           </Section>
         </>
-      )}
+      ) : null}
     </div>
   );
 }
