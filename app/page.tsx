@@ -79,7 +79,7 @@ export default function Home() {
             </Link>
           </div>
           <p className="text-xs text-muted max-w-xl">
-            ETHGlobal Mumbai testnet demo — payments use test USDC. Start on Get cover with{" "}
+            Testnet demo — payments use test USDC. Start on Get cover with{" "}
             <strong className="text-ink-2 font-semibold">Use demo wallet (test funds)</strong>.
           </p>
         </div>
@@ -87,10 +87,10 @@ export default function Home() {
 
       <section className="space-y-5 reveal" style={{ animationDelay: "80ms" }}>
         <div className="space-y-2 max-w-2xl">
-          <p className="tag text-signal">Demo path</p>
+          <p className="tag text-signal">Try it</p>
           <h2 className="font-display text-3xl sm:text-4xl font-semibold leading-tight">Where to click in the app</h2>
           <p className="text-ink-2">
-            Four surfaces cover the product story for judges. Start with cover, then open the live stack status.
+            Four surfaces cover the product end to end. Start with cover, then open the live stack status.
           </p>
         </div>
         <ol className="grid sm:grid-cols-2 gap-x-8 gap-y-5">

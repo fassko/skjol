@@ -41,7 +41,7 @@ export function CoverFlow({ aiEnabled }: { aiEnabled: boolean }) {
           <p className="text-ink-2">Fixed payout if your vessel arrives more than 24 hours after the agreed deadline.</p>
           {!session && !loading && (
             <p className="text-sm text-ink-2 rounded-lg bg-sea-soft/70 px-3 py-2">
-              Demo tip: choose <strong>Use demo wallet (test funds)</strong>, then use <strong>Step by step</strong> to upload a bill of lading and buy with test USDC.
+              Quick start: choose <strong>Use demo wallet (test funds)</strong>, then use <strong>Step by step</strong> to upload a bill of lading and buy with test USDC.
             </p>
           )}
         </div>
