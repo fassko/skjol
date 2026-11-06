@@ -32,7 +32,7 @@ Try [Get cover](https://skjol-insurance.vercel.app/cover) with **Use demo wallet
 
 The system diagram from the app’s [How it’s built page](https://skjol-insurance.vercel.app/integrations).
 
-- **Arc:** USDC/EURC pools reserve collateral and settle payouts. Capital funders receive ERC-4626 shares, with share trading through Uniswap V2. The USDC pool ([`0x2beb…8fa4`](https://explorer.testnet.arc.io/address/0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4)) was deployed from [Arc Studio](https://studio.arc.io/app/03aa1ed4-209d-44ee-b09c-2523a48babe3); its Studio app is in [`arc-studio/`](./arc-studio).
+- **Arc:** USDC/EURC pools reserve collateral and settle payouts. Capital funders receive ERC-4626 shares, with share trading through Uniswap V2. The USDC pool ([`0xa750…70c0`](https://explorer.testnet.arc.io/address/0xa7505609b6c380c3f87940db151ef4a5437f70c0)) was deployed from [Arc Studio](https://studio.arc.io/app/03aa1ed4-209d-44ee-b09c-2523a48babe3); its Studio app is in [`arc-studio/`](./arc-studio).
 - **Chainlink CRE:** evaluates port-call evidence from Digitraffic or VesselFinder, with labelled replay data for demos.
 - **Arkiv:** stores shipment, policy, and event records, including sealed document references.
 - **Swarm:** stores AES-256-GCM-encrypted bills of lading; decryption keys stay on the server.
@@ -143,13 +143,13 @@ Capital funders get ERC-4626 shares (`skjolUSDC`). Premiums raise their value an
 
 | Piece | Where |
 |---|---|
-| Pool share token (ERC-4626) | [`contracts/src/ShipmentDelayPool.sol`](./contracts/src/ShipmentDelayPool.sol) L30, `fund` L200, `maxWithdraw` / `maxRedeem` L211–L224 |
+| Pool share token (ERC-4626) | [`contracts/src/ShipmentDelayPool.sol`](./contracts/src/ShipmentDelayPool.sol) L32, `fund` L215, `maxWithdraw` / `maxRedeem` L239–L252 |
 | Create and seed the pair (`createPair`, `addLiquidity`) | [`scripts/seed-share-pair.mts`](./scripts/seed-share-pair.mts) |
 | Quote and swap in the app (`getAmountsOut`, `swapExactTokensForTokens`) | [`app/capital/page.tsx`](./app/capital/page.tsx) `TradePanel` L378–L500 |
 | Router ABI | [`lib/abi/uniswap-v2.ts`](./lib/abi/uniswap-v2.ts) |
 | Factory and router addresses | [`lib/config.ts`](./lib/config.ts) L78–L81 |
 
-On Arc Testnet: pair [`0x4aEe…78D2`](https://explorer.testnet.arc.io/address/0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2), V2 factory `0x7483847d46db2920dd64efa676cf72dcf765814f`, router `0xe27d5d256b370604f1ff060fb489c6a8e3f8a6d9`. Try it on [Capital](https://skjol-insurance.vercel.app/capital).
+On Arc Testnet: pair [`0xE89f…d124`](https://explorer.testnet.arc.io/address/0xE89f57309472a3F26378EC887B738ED294b5d124), V2 factory `0x7483847d46db2920dd64efa676cf72dcf765814f`, router `0xe27d5d256b370604f1ff060fb489c6a8e3f8a6d9`. Try it on [Capital](https://skjol-insurance.vercel.app/capital).
 
 ## Develop
 

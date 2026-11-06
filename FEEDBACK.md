@@ -6,20 +6,21 @@ Skjol sells parametric arrival-delay cover. Capital providers fund the pool that
 
 | Piece | Where |
 |---|---|
-| Pool shares (ERC-4626, plain ERC-20 to the AMM) | [`contracts/src/ShipmentDelayPool.sol`](./contracts/src/ShipmentDelayPool.sol) L30, `fund` L200, `maxWithdraw` / `maxRedeem` L211–L224 |
+| Pool shares (ERC-4626, plain ERC-20 to the AMM) | [`contracts/src/ShipmentDelayPool.sol`](./contracts/src/ShipmentDelayPool.sol) L32, `fund` L215, `maxWithdraw` / `maxRedeem` L239–L252 |
 | Create and seed the share/USDC pair (`createPair`, `addLiquidity`) | [`scripts/seed-share-pair.mts`](./scripts/seed-share-pair.mts) |
 | Quote and swap in the app (`getAmountsOut`, `swapExactTokensForTokens`) | [`app/capital/page.tsx`](./app/capital/page.tsx) `TradePanel` L378–L500 |
 | Router ABI (the two functions we call) | [`lib/abi/uniswap-v2.ts`](./lib/abi/uniswap-v2.ts) |
 | Factory and router addresses | [`lib/config.ts`](./lib/config.ts) L78–L81, [`shared/capital-public.ts`](./shared/capital-public.ts) |
-| NAV tests (premium raises, payout lowers) | [`contracts/test/ShipmentDelayPool.t.sol`](./contracts/test/ShipmentDelayPool.t.sol) L147, L165 |
+| NAV tests (premium raises, payout lowers) | [`contracts/test/ShipmentDelayPool.t.sol`](./contracts/test/ShipmentDelayPool.t.sol) L185, L203 |
 
 On Arc Testnet (chain id `5042002`):
 
 | | Address / tx |
 |---|---|
-| USDC pool (`skjolUSDC`) | [`0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4`](https://explorer.testnet.arc.io/address/0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4) |
-| skjolUSDC / USDC pair | [`0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2`](https://explorer.testnet.arc.io/address/0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2) |
-| Seed liquidity (2 shares + 2 USDC) | [`0x3993b71a…6cd0fe`](https://explorer.testnet.arc.io/tx/0x3993b71ab115850c3db960a18091e4c54552eec74be1dc290cf88efe4e6cd0fe) |
+| USDC pool (`skjolUSDC`) | [`0xa7505609b6c380c3f87940db151ef4a5437f70c0`](https://explorer.testnet.arc.io/address/0xa7505609b6c380c3f87940db151ef4a5437f70c0), deployed from Arc Studio |
+| skjolUSDC / USDC pair | [`0xE89f57309472a3F26378EC887B738ED294b5d124`](https://explorer.testnet.arc.io/address/0xE89f57309472a3F26378EC887B738ED294b5d124) |
+| Create pair / seed liquidity (2 shares + 2 USDC) | [`0x7b550a76…09175a`](https://explorer.testnet.arc.io/tx/0x7b550a763b07c39bea1290b79e5d52986a7cb46bb6bd6f50fdfa590e2a09175a) / [`0xe9f0b1f9…dfc1`](https://explorer.testnet.arc.io/tx/0xe9f0b1f9982486791d8ee41dd58749c32b4fc9791a47614fdefd6f34dadf3fc1) |
+| First Studio pool and pair (before the review fixes) | [`0x2bebcde5…8fa4`](https://explorer.testnet.arc.io/address/0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4) / [`0x4aEe8ECa…78D2`](https://explorer.testnet.arc.io/address/0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2) |
 | Earlier USDC pool and pair (before the Arc Studio redeploy) | [`0xf9a17a1b…9e91301`](https://explorer.testnet.arc.io/address/0xf9a17a1b28eecaa8ef15cae0473c39a9c9e91301) / [`0x74BC77B0…444cC5B`](https://explorer.testnet.arc.io/address/0x74BC77B067091afd1A7AcB65c4d205002444cC5B) |
 | V2 factory / router used | `0x7483847d46db2920dd64efa676cf72dcf765814f` / `0xe27d5d256b370604f1ff060fb489c6a8e3f8a6d9` |
 

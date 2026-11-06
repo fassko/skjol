@@ -7,6 +7,7 @@ Built with [Arc Studio](https://studio.arc.io)
 ## What you can do
 
 - Deposit USDC into the pool and redeem it (reserved capital stays locked until policies settle).
+- See what your shares receive on exit, and claim a payout the token could not deliver the first time.
 - Paste a signed quote from Skjol, check it, and buy cover.
 - Browse every policy and its status, evidence and payout transaction.
 - Read a short explanation of how the flow works.

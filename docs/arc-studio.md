@@ -28,15 +28,19 @@ Skjol's USDC pool was tested, deployed and given its own web app in Arc Studio. 
 
 ## Deployment (Arc Testnet, chain id 5042002)
 
+The live pool is the second Studio deployment. It carries the fixes from Studio's review (below).
+
 | | Address / transaction |
 |---|---|
-| Pool (`skjolUSDC`) | [`0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4`](https://explorer.testnet.arc.io/address/0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4), block 70866278 |
+| Pool (`skjolUSDC`) | [`0xa7505609b6c380c3f87940db151ef4a5437f70c0`](https://explorer.testnet.arc.io/address/0xa7505609b6c380c3f87940db151ef4a5437f70c0), block 70874549 |
 | Deployed by Arc Studio wallet | [`0xfddf934a32a0cb33e7181454b9f2501f8baff7a1`](https://explorer.testnet.arc.io/address/0xfddf934a32a0cb33e7181454b9f2501f8baff7a1) |
-| Deploy | [`0xc1fed758…ec6566a`](https://explorer.testnet.arc.io/tx/0xc1fed758bad34c7fcb9832a71ba7bc6d5b833680de5abbc325209c729ec6566a) |
-| `setSimulationOperator` | [`0x93cc9f5c…bf4117a`](https://explorer.testnet.arc.io/tx/0x93cc9f5c393684b3b025039fc15d472d0a328e5df864e30422a27a165bf4117a) |
-| `transferOwnership` to `0x006B…364E` | [`0xbb732e81…053d6cb49`](https://explorer.testnet.arc.io/tx/0xbb732e819fea665287475b453c1b569e90ee64a01823a92c7eae345053d6cb49) |
-| Funded with 6 USDC | [`0xf8981dd7…f8c78cf`](https://explorer.testnet.arc.io/tx/0xf8981dd7447135f82dfaca81841e4cc05d79a3b403365a51d563c4fe5f8c78cf) |
-| `skjolUSDC`/USDC Uniswap V2 pair | [`0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2`](https://explorer.testnet.arc.io/address/0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2) |
+| Deploy (Studio) | [`0xe55df41f…90064a`](https://explorer.testnet.arc.io/tx/0xe55df41f51e800464ec1b2d9658e4130015679654f3f442415eaaea9ac90064a) |
+| `transferOwnership` to `0x006B…364E` (Studio) | [`0x8fd950a2…77b033`](https://explorer.testnet.arc.io/tx/0x8fd950a21f5188e8e9d3b4f0c4a48244a095654cb79c8b8423a6c6696b77b033) |
+| `acceptOwnership` (Skjol deployer) | [`0xd4b0f6fd…be83d`](https://explorer.testnet.arc.io/tx/0xd4b0f6fde1b25d2d566da6cc76fac52510a580c2cc0d850adca2cdc8514be83d) |
+| `setSimulationOperator` | [`0x3aa7ddb5…c4641`](https://explorer.testnet.arc.io/tx/0x3aa7ddb5c0612b718a682ad81492ee527ef428189fff79ab513f87f9375c4641) |
+| Funded with 20 USDC | [`0x3272025f…4ae10`](https://explorer.testnet.arc.io/tx/0x3272025f956043d6fdd6eacb4274c0c3984f7921a3d0f04d174c765b3b54ae10) |
+| `skjolUSDC`/USDC Uniswap V2 pair | [`0xE89f57309472a3F26378EC887B738ED294b5d124`](https://explorer.testnet.arc.io/address/0xE89f57309472a3F26378EC887B738ED294b5d124) |
+| First Studio pool (before the fixes) | [`0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4`](https://explorer.testnet.arc.io/address/0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4), pair [`0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2`](https://explorer.testnet.arc.io/address/0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2). Record: [`deployments/arc-testnet-studio-v1.json`](../deployments/arc-testnet-studio-v1.json) |
 
 Constructor: CRE simulation forwarder `0x6E9E…eDc1`, Arc USDC `0x3600…0000`, quote signer `0x8198…5803` (Skjol's backend), max payout 20 USDC, max evidence age 6 h, minimum lead time 60 s, review delay 30 days. Full record: [`deployments/arc-testnet.json`](../deployments/arc-testnet.json).
 
@@ -50,7 +54,7 @@ Architecture diagram: [`docs/architecture.svg`](./architecture.svg), and **How i
 
 ## Arc Studio's review, and what we changed
 
-The review raised five items. The contract source in [`arc-studio/contracts/`](../arc-studio/contracts/) and [`contracts/src/`](../contracts/src/) now fixes four of them. Each fix has a test, and the Studio suite has 41 passing tests. These fixes take effect when the pool is redeployed. The pool at `0x2beb…8fa4` still runs the reviewed version.
+The first review raised five items. The contract source in [`arc-studio/contracts/`](../arc-studio/contracts/) and [`contracts/src/`](../contracts/src/) now fixes four of them. Each fix has a test, and the Studio suite has 41 passing tests. Studio re-reviewed the fixes, ran the tests and redeployed the pool from its Circle wallet; the live pool `0xa750…70c0` runs this version.
 
 | Review finding | Fix | Test |
 |---|---|---|
@@ -61,9 +65,11 @@ The review raised five items. The contract source in [`arc-studio/contracts/`](.
 | Ownership transfer is single-step | `ReceiverTemplate` uses `Ownable2Step`. The new owner has to call `acceptOwnership`. | `test_OwnershipTransferIsTwoStep` |
 | The 24-hour threshold is part of the signed quote | Not changed. The threshold belongs to each product and is fixed in the signed quote on purpose. The quote signer is the control. | — |
 
-## Redeploy the fixed pool from Arc Studio
+**Studio's second re-review** left one Medium open. An attacker who donates to the pool before the first deposit could keep the share supply low enough that funders can't exit while policies are open. No funds can be stolen, and it only works on an empty pool. `scripts/adopt-studio-pool.mts` refuses to fund a pool that has assets but no shares, and it funded this pool in a single 20 USDC deposit, so the attack window is closed for this deployment.
 
-The fixes above go live only through a new deployment, and that deployment has to come from Studio so the live pool stays Studio-built. Three steps.
+## How the fixed pool was redeployed from Arc Studio
+
+This is how the live pool was deployed, kept so the redeploy can be repeated. The deployment has to come from Studio so the live pool stays Studio-built. Three steps. The Studio turns were run with the `arc-studio` CLI (`arc-studio run --session skjol-pool --prompt-file … --file …`), which sends these files into the workspace directly.
 
 ### 1. Paste this into the Studio project chat
 

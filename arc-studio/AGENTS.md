@@ -12,9 +12,9 @@ Skjol Pool: USDC settlement pool and web app for arrival delay cover (ERC-4626 s
 
 ## Deployments (Arc Testnet, chain 5042002)
 
-- ShipmentDelayPool: `0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4`, deploy block 70866278, deploy tx `0xc1fed758bad34c7fcb9832a71ba7bc6d5b833680de5abbc325209c729ec6566a`
-- Deployer (Circle developer-controlled wallet): `0xfddf934a32a0cb33e7181454b9f2501f8baff7a1`
-- Owner after handover: `0x006B92D63938d9B9e3485077e7A72C9a9944364E` (also simulationOperator)
+- ShipmentDelayPool (current, v2 with fixes): `0xa7505609b6c380c3f87940db151ef4a5437f70c0`, deploy block 70874549, deploy tx `0xe55df41f51e800464ec1b2d9658e4130015679654f3f442415eaaea9ac90064a`. Ownership is two-step: `transferOwnership` to `0x006B92D63938d9B9e3485077e7A72C9a9944364E` is sent (tx `0x8fd950a21f5188e8e9d3b4f0c4a48244a095654cb79c8b8423a6c6696b77b033`); that address must call `acceptOwnership()`, then `setSimulationOperator`.
+- Superseded v1 pool (do not use): `0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4`
+- Deployer (Circle developer-controlled wallet, id `4963feec-015f-5129-a1dc-d11871c20281`): `0xfddf934a32a0cb33e7181454b9f2501f8baff7a1`
 - Pool address and deploy block are set in `src/contract.ts`. Owner-only helper script: `scripts/pool-admin.ts`.
 
 ## Tech Stack

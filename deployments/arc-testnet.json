@@ -19,18 +19,18 @@
     "router": "0xe27d5d256b370604f1ff060fb489c6a8e3f8a6d9"
   },
   "txs": {
-    "deploy": "0xc1fed758bad34c7fcb9832a71ba7bc6d5b833680de5abbc325209c729ec6566a",
-    "setSimulationOperator": "0x93cc9f5c393684b3b025039fc15d472d0a328e5df864e30422a27a165bf4117a",
-    "transferOwnership": "0xbb732e819fea665287475b453c1b569e90ee64a01823a92c7eae345053d6cb49",
-    "approve": "0xac99f1aad3cf07da25758023fbfabbb27454944e6098e88778f9cc7247a1f2a2",
-    "fund": "0xf8981dd7447135f82dfaca81841e4cc05d79a3b403365a51d563c4fe5f8c78cf",
-    "addLiquidity": "0x3993b71ab115850c3db960a18091e4c54552eec74be1dc290cf88efe4e6cd0fe"
+    "deploy": "0xe55df41f51e800464ec1b2d9658e4130015679654f3f442415eaaea9ac90064a",
+    "acceptOwnership": "0xd4b0f6fde1b25d2d566da6cc76fac52510a580c2cc0d850adca2cdc8514be83d",
+    "setSimulationOperator": "0x3aa7ddb5c0612b718a682ad81492ee527ef428189fff79ab513f87f9375c4641",
+    "approve": "0xdd54347b694e4c6a984c1d7105bbd873aa167941503bdb6f13d183957767ea68",
+    "fund": "0x3272025f956043d6fdd6eacb4274c0c3984f7921a3d0f04d174c765b3b54ae10",
+    "addLiquidity": "0xe9f0b1f9982486791d8ee41dd58749c32b4fc9791a47614fdefd6f34dadf3fc1"
   },
-  "pool": "0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4",
-  "deployBlock": "70866278",
+  "pool": "0xa7505609B6c380C3f87940Db151eF4a5437f70C0",
+  "deployBlock": "70874549",
   "simulationOperator": "0x006B92D63938d9B9e3485077e7A72C9a9944364E",
-  "poolBalance": "6000000",
-  "deployerShares": "4000000",
-  "previousPool": "0xf9a17a1b28eecaa8ef15cae0473c39a9c9e91301",
-  "sharePair": "0x4aEe8ECa01144ea44657795f1A0cd8CD81A478D2"
+  "poolBalance": "20000000",
+  "deployerShares": "20000000",
+  "previousPool": "0x2bebcde5d15ddeba0f407018cd1f2d51ec578fa4",
+  "sharePair": "0xE89f57309472a3F26378EC887B738ED294b5d124"
 }
