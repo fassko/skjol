@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Fraunces } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 import { Providers } from "./components/providers";
 import { Nav } from "./components/nav";
@@ -28,12 +29,30 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
             <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>{children}</Suspense>
           </main>
-          <footer className="border-t border-line text-xs text-muted py-4 px-6 text-center">
+          <footer className="border-t border-line text-xs text-muted py-4 px-6 text-center space-y-1">
             <p>
               Skjol. Arrival delay protection built for small importers.{" "}
               <a href="https://github.com/fassko/skjol" target="_blank" rel="noopener noreferrer" className="underline hover:text-ink">
                 Source on GitHub
               </a>
+            </p>
+            <p>
+              Demo:{" "}
+              <Link href="/cover" className="underline hover:text-ink">
+                Get cover
+              </Link>
+              {" · "}
+              <Link href="/integrations" className="underline hover:text-ink">
+                How it’s built
+              </Link>
+              {" · "}
+              <Link href="/capital" className="underline hover:text-ink">
+                Capital
+              </Link>
+              {" · "}
+              <Link href="/agent" className="underline hover:text-ink">
+                Freight agent
+              </Link>
             </p>
           </footer>
         </Providers>

@@ -4,12 +4,13 @@ import { usePathname } from "next/navigation";
 import { useSession } from "./session";
 import { short } from "./api";
 
+/** Primary demo surfaces first, then account and team. */
 const LINKS = [
   { href: "/cover", label: "Get cover" },
-  { href: "/capital", label: "Capital" },
-  { href: "/policies", label: "My shipments" },
-  { href: "/agent", label: "Freight agent" },
   { href: "/integrations", label: "How it's built" },
+  { href: "/capital", label: "Capital" },
+  { href: "/agent", label: "Freight agent" },
+  { href: "/policies", label: "My shipments" },
   { href: "/team", label: "Team" },
 ];
 

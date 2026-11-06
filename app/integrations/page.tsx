@@ -316,12 +316,25 @@ export default function IntegrationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="space-y-3">
+        <p className="tag text-sea">Live stack</p>
         <h1 className="font-display text-3xl font-semibold">How it’s built</h1>
-        <p className="text-ink-2 mt-1 max-w-3xl">
+        <p className="text-ink-2 max-w-3xl">
           Live status of every integration, read from this deployment. Capital is pooled across policies; funders hold ERC-4626
           shares that redeem for free collateral or trade on Uniswap V2. The freight tools are also an MCP server — any agent
           connects with a token from the agent page.
+        </p>
+        <p className="text-sm text-ink-2 max-w-3xl">
+          Skim the system diagram, then confirm Arc pool figures, Swarm postage status, and the x402 / Hedera rails.
+          Buy cover from{" "}
+          <Link href="/cover" className="underline">
+            Get cover
+          </Link>
+          ; fund or trade shares on{" "}
+          <Link href="/capital" className="underline">
+            Capital
+          </Link>
+          .
         </p>
       </div>
       <ErrorNote error={error} />
