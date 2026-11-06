@@ -1,0 +1,854 @@
+<!doctype html>
+<html
+  lang="en"
+  data-composition-variables='[{"id":"payoff","type":"string","label":"Payoff","default":"Get paid."},{"id":"stamp","type":"string","label":"Stamp","default":"Excluded"},{"id":"signal","type":"color","label":"Signal","default":"#d9480f"},{"id":"sea","type":"color","label":"Sea","default":"#1d6b74"}]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Skjol — Late ship</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Fraunces";
+        src: url("assets/fonts/fraunces-600.woff2") format("woff2");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("assets/fonts/ibm-plex-sans-400.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Sans";
+        src: url("assets/fonts/ibm-plex-sans-600.woff2") format("woff2");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+
+      :root {
+        --paper: #f5f2ea;
+        --paper-2: #ece7da;
+        --card: #fffdf8;
+        --ink: #0f2333;
+        --ink-2: #3b4e5e;
+        --line: #d6cfbf;
+        --signal: #d9480f;
+        --sea: #1d6b74;
+        --sea-soft: #d8ebe9;
+        --ok: #2b7a3d;
+        --bad: #b42318;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--paper);
+      }
+
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "IBM Plex Sans", sans-serif;
+      }
+
+      #paper {
+        position: absolute;
+        inset: 0;
+        background-color: var(--paper);
+        background-image:
+          linear-gradient(var(--paper-2) 1px, transparent 1px),
+          linear-gradient(90deg, var(--paper-2) 1px, transparent 1px),
+          radial-gradient(ellipse 80% 70% at 88% 18%, rgba(29, 107, 116, 0.14), transparent 55%),
+          radial-gradient(ellipse 60% 50% at 12% 88%, rgba(217, 72, 15, 0.08), transparent 50%);
+        background-size: 48px 48px, 48px 48px, auto, auto;
+        background-position: -1px -1px, -1px -1px, 0 0, 0 0;
+      }
+
+      #chrome {
+        position: absolute;
+        z-index: 8;
+        top: 72px;
+        left: 192px;
+        right: 192px;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+
+      #chrome-mark {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-family: Fraunces, serif;
+        font-weight: 600;
+        font-size: 40px;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+
+      #chrome-logo {
+        width: 56px;
+        height: 56px;
+        display: block;
+      }
+
+      #chrome-kicker {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 28px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-2);
+      }
+
+      .clip { position: absolute; inset: 0; }
+      #beat-late { z-index: 2; }
+      #beat-policy { z-index: 3; }
+      #beat-pool { z-index: 4; }
+      #beat-geo { z-index: 5; }
+      #beat-pay { z-index: 6; }
+
+      .stage {
+        position: absolute;
+        inset: 0;
+        padding: 168px 192px 128px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .kicker {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 28px;
+        font-weight: 400;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--sea);
+        margin-bottom: 14px;
+      }
+
+      h1, h2 {
+        font-family: Fraunces, serif;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        line-height: 0.98;
+        color: var(--ink);
+      }
+
+      .word { display: inline-block; margin-right: 0.26em; }
+      .signal { color: var(--signal); }
+
+      #late-title { font-size: 128px; }
+
+      #late-chart {
+        position: relative;
+        height: 390px;
+        margin-top: 36px;
+      }
+
+      .track-ghost, #track-fill {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        top: 230px;
+      }
+
+      .track-ghost {
+        height: 3px;
+        background: repeating-linear-gradient(90deg, var(--line) 0 12px, transparent 12px 22px);
+      }
+
+      #track-fill {
+        height: 8px;
+        top: 228px;
+        background: var(--sea);
+        transform-origin: left center;
+      }
+
+      .dot {
+        position: absolute;
+        top: 214px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+      }
+
+      .dot.origin { left: -4px; background: var(--sea); }
+      .dot.dest {
+        right: -4px;
+        background: var(--card);
+        border: 4px solid var(--signal);
+      }
+
+      .track-labels {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 268px;
+        display: flex;
+        justify-content: space-between;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 32px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-2);
+      }
+
+      #late-ship {
+        position: absolute;
+        left: 8px;
+        top: 104px;
+        width: 340px;
+        height: 162px;
+      }
+
+      #late-ship svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      #late-flag {
+        position: absolute;
+        left: 36px;
+        top: -8px;
+        background: var(--signal);
+        color: #fffdf8;
+        font-family: "IBM Plex Sans", sans-serif;
+        font-weight: 600;
+        font-size: 28px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 6px 14px;
+        border-radius: 999px;
+        transform-origin: center bottom;
+      }
+
+      #due-note {
+        margin-top: auto;
+        margin-bottom: 28px;
+        font-family: Fraunces, serif;
+        font-weight: 600;
+        font-size: 44px;
+        line-height: 1.15;
+        color: var(--ink);
+      }
+
+      #ledger {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 36px;
+        align-items: end;
+      }
+
+      .due {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 16px;
+        border-top: 2px solid var(--ink);
+        padding-top: 16px;
+        font-family: Fraunces, serif;
+        font-size: 44px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .due-mark {
+        font-family: "IBM Plex Sans", sans-serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--bad);
+      }
+
+      #policy-stage { opacity: 0; }
+
+      #policy-sheet {
+        position: relative;
+        width: 1360px;
+        margin-top: 12px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 48px 56px 40px;
+        box-shadow: 0 1px 0 rgba(15, 35, 51, 0.04), 0 24px 48px -28px rgba(15, 35, 51, 0.45);
+      }
+
+      #pol-title { font-size: 112px; max-width: 1080px; }
+
+      .clause {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        margin-top: 8px;
+        padding: 18px 0 8px;
+        border-top: 1px solid var(--line);
+        font-size: 42px;
+        color: var(--ink);
+        clip-path: inset(0 100% 0 0);
+      }
+
+      .verdict {
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .ok { color: var(--ok); }
+      .miss { color: var(--ink-2); }
+
+      .word-slot { position: relative; display: inline-block; }
+
+      #pol-strike {
+        position: absolute;
+        left: -4px;
+        right: -4px;
+        top: 50%;
+        height: 4px;
+        background: var(--bad);
+        transform-origin: left center;
+      }
+
+      #pol-stamp {
+        position: absolute;
+        top: 36px;
+        right: 36px;
+        border: 5px solid var(--bad);
+        color: var(--bad);
+        font-family: "IBM Plex Sans", sans-serif;
+        font-weight: 600;
+        font-size: 32px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        padding: 14px 18px 12px;
+        border-radius: 8px;
+        background: rgba(255, 253, 248, 0.94);
+        transform-origin: center center;
+      }
+
+      #pol-foot {
+        margin-top: 28px;
+        font-size: 36px;
+        color: var(--ink-2);
+      }
+
+      #pool-stage { clip-path: inset(100% 0 0 0); }
+
+      #pool-title { font-size: 112px; }
+      #pool-while {
+        margin-top: 8px;
+        font-family: Fraunces, serif;
+        font-weight: 600;
+        font-size: 56px;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+
+      #pool-row {
+        position: relative;
+        margin-top: 36px;
+        min-height: 460px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+      }
+
+      #pool-well {
+        width: 700px;
+        height: 400px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 22px 28px 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        box-shadow: 0 1px 0 rgba(15, 35, 51, 0.04), 0 18px 40px -28px rgba(15, 35, 51, 0.4);
+      }
+
+      #bars {
+        height: 280px;
+        display: flex;
+        align-items: flex-end;
+        gap: 28px;
+      }
+
+      .bar {
+        width: 128px;
+        border-radius: 10px 10px 3px 3px;
+        background: var(--sea);
+        opacity: 0;
+      }
+
+      #lp-1 { height: 180px; }
+      #lp-2 { height: 260px; background: var(--ink); }
+      #lp-3 { height: 140px; }
+
+      #pool-caption {
+        margin-top: 14px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 28px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-2);
+      }
+
+      #market {
+        width: 440px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+      }
+
+      #market-label {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 28px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--sea);
+        text-align: center;
+      }
+
+      #market-box {
+        height: 168px;
+        border: 2px dashed var(--sea);
+        border-radius: 18px;
+        background: rgba(216, 235, 233, 0.55);
+      }
+
+      #share {
+        position: absolute;
+        left: 72px;
+        bottom: 48px;
+        z-index: 3;
+        background: var(--ink);
+        color: var(--paper);
+        font-family: Fraunces, serif;
+        font-weight: 600;
+        font-size: 40px;
+        letter-spacing: -0.02em;
+        padding: 14px 28px;
+        border-radius: 999px;
+      }
+
+      #claim-pill {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background: var(--sea-soft);
+        color: var(--sea);
+        border: 1px solid var(--sea);
+        border-radius: 999px;
+        padding: 10px 18px;
+        font-weight: 600;
+        font-size: 28px;
+        transform-origin: center center;
+      }
+
+      #pay-rule {
+        margin-top: 12px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 28px;
+        letter-spacing: 0.04em;
+        color: var(--ink-2);
+      }
+
+      #pay-stage { justify-content: flex-end; padding-bottom: 168px; }
+
+      #pay-kicker {
+        font-family: Fraunces, serif;
+        font-weight: 600;
+        font-size: 84px;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+        text-transform: none;
+        margin-bottom: 8px;
+      }
+
+      #pay-title {
+        font-size: 220px;
+        line-height: 0.9;
+        color: var(--signal);
+      }
+
+      #pay-sub {
+        margin-top: 22px;
+        font-size: 48px;
+        color: var(--ink);
+      }
+
+
+      #pay-mark {
+        margin-top: 40px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font-family: Fraunces, serif;
+        font-weight: 600;
+        font-size: 64px;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+
+      #pay-logo {
+        width: 120px;
+        height: 120px;
+        display: block;
+      }
+
+      #geo-title {
+        font-size: 92px;
+      }
+
+      #geo-sub {
+        margin-top: 8px;
+        font-family: Fraunces, serif;
+        font-weight: 600;
+        font-size: 40px;
+        color: var(--ink);
+      }
+
+      #ports {
+        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 48px;
+        align-items: end;
+      }
+
+      .port {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+
+      .port svg {
+        width: 100%;
+        height: 300px;
+        display: block;
+      }
+
+      .region-name {
+        margin-top: 14px;
+        border-top: 5px solid var(--sea);
+        padding-top: 12px;
+        font-family: Fraunces, serif;
+        font-weight: 600;
+        font-size: 48px;
+        letter-spacing: -0.03em;
+        color: var(--ink);
+      }
+
+      .lp-name {
+        margin-top: 12px;
+        font-family: "IBM Plex Sans", sans-serif;
+        font-weight: 600;
+        font-size: 28px;
+        color: var(--ink-2);
+        text-align: center;
+        opacity: 0;
+      }
+
+      .bar-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      #pool-foot {
+        margin-top: 28px;
+        font-size: 36px;
+        color: var(--ink-2);
+      }
+
+      .pre {
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="15"
+      data-width="1920"
+      data-height="1080"
+      data-motion-blur="on"
+    >
+      <div id="paper"></div>
+
+      <header id="chrome">
+        <div id="chrome-mark">
+          <img id="chrome-logo" src="assets/logo.svg" alt="" />
+          <span>Skjol</span>
+        </div>
+        <div id="chrome-kicker">Arrival delay cover</div>
+      </header>
+
+      <section
+        id="beat-late"
+        class="clip"
+        data-start="0"
+        data-duration="3.3"
+        data-track-index="2"
+        data-track-kind="graphics"
+      >
+        <div id="late-stage" class="stage">
+          <p id="late-kicker" class="kicker pre">Small importer</p>
+          <h1 id="late-title">
+            <span id="w-the" class="word pre">The</span>
+            <span id="w-ship" class="word pre">ship</span>
+            <span id="w-is" class="word pre">is</span>
+            <span id="w-late" class="word signal pre">late.</span>
+          </h1>
+          <div id="late-chart">
+            <div class="track-ghost"></div>
+            <div id="track-fill"></div>
+            <div class="dot origin"></div>
+            <div class="dot dest"></div>
+            <div class="track-labels">
+              <span>Origin</span>
+              <span>Deadline</span>
+            </div>
+            <div id="late-ship">
+              <div id="late-flag" class="pre">Late</div>
+              <svg viewBox="0 0 118 56" aria-hidden="true">
+                <path d="M4 40 H82 L108 26 H28 Z" fill="#1d6b74" />
+                <rect x="46" y="14" width="28" height="12" fill="#0f2333" />
+                <rect x="56" y="4" width="4" height="10" fill="#0f2333" />
+              </svg>
+            </div>
+          </div>
+          <p id="due-note" class="pre">The small business owner still has to open.</p>
+          <div id="ledger">
+            <div id="due-wages" class="due pre"><span>Wages</span><span class="due-mark">Due</span></div>
+            <div id="due-rent" class="due pre"><span>Rent</span><span class="due-mark">Due</span></div>
+            <div id="due-invoices" class="due pre"><span>Invoices</span><span class="due-mark">Due</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="beat-policy"
+        class="clip"
+        data-start="3.1"
+        data-duration="3"
+        data-track-index="3"
+        data-track-kind="graphics"
+      >
+        <div id="policy-stage" class="stage">
+          <p id="pol-kicker" class="kicker pre">Cargo policy</p>
+          <div id="policy-sheet">
+            <h2 id="pol-title" class="pre">Delay is excluded.</h2>
+            <div id="pol-1" class="clause">
+              <span>Physical loss</span>
+              <span class="verdict ok">Covered</span>
+            </div>
+            <div id="pol-2" class="clause">
+              <span>Damage</span>
+              <span class="verdict ok">Covered</span>
+            </div>
+            <div id="pol-3" class="clause">
+              <span>Delay</span>
+              <span class="word-slot">
+                <span class="verdict miss">Covered</span>
+                <span id="pol-strike" class="pre"></span>
+              </span>
+            </div>
+            <div
+              id="pol-stamp"
+              class="pre"
+              data-var-text="stamp"
+            >Excluded</div>
+            <p id="pol-foot" class="pre">No claim. The small business owner still pays.</p>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="beat-pool"
+        class="clip"
+        data-start="5.85"
+        data-duration="3.7"
+        data-track-index="4"
+        data-track-kind="graphics"
+      >
+        <div id="pool-stage" class="stage">
+          <p id="pool-kicker" class="kicker pre">Liquidity providers</p>
+          <h2 id="pool-title" class="pre">Pooled together</h2>
+          <p id="pool-while" class="pre">One pool pays the claims.</p>
+          <div id="pool-row">
+            <div id="claim-pill" class="pre">Claim still open</div>
+            <div id="pool-well">
+              <div id="bars">
+                <div class="bar-col"><div id="lp-1" class="bar"></div><div class="lp-name">Provider</div></div>
+                <div class="bar-col"><div id="lp-2" class="bar"></div><div class="lp-name">Provider</div></div>
+                <div class="bar-col"><div id="lp-3" class="bar"></div><div class="lp-name">Provider</div></div>
+              </div>
+              <div id="pool-caption">Claims pool</div>
+            </div>
+            <div id="market">
+              <div id="market-label">Market</div>
+              <div id="market-box"></div>
+            </div>
+            <div id="share" class="pre">Shares</div>
+          </div>
+          <p id="pool-foot" class="pre">They trade the share before the claim pays.</p>
+        </div>
+      </section>
+
+      <section
+        id="beat-pay"
+        class="clip"
+        data-start="11.75"
+        data-duration="3.25"
+        data-track-index="5"
+        data-track-kind="graphics"
+      >
+        <div id="pay-stage" class="stage">
+          <p id="pay-kicker" class="pre">Late ship?</p>
+          <h1 id="pay-title" class="pre" data-var-text="payoff">Get paid.</h1>
+          <p id="pay-sub" class="pre">Fixed payout. No claim form.</p>
+          <p id="pay-rule" class="pre">Recorded arrival more than 24 hours late.</p>
+          <div id="pay-mark" class="pre">
+            <img id="pay-logo" src="assets/logo.svg" alt="" />
+            <span>Skjol</span>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="beat-geo"
+        class="clip"
+        data-start="9.4"
+        data-duration="2.5"
+        data-track-index="6"
+        data-track-kind="graphics"
+      >
+        <div id="geo-stage" class="stage">
+          <p id="geo-kicker" class="kicker pre">The opportunity</p>
+          <h1 id="geo-title" class="pre">Emerging markets</h1>
+          <p id="geo-sub" class="pre">They wait on the ship. This cover pays.</p>
+          <div id="ports">
+            <div id="region-asia" class="port pre">
+              <svg viewBox="0 0 340 210" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+                <path fill="#1d6b74" d="M30 70 L48 48 L96 28 L160 14 L230 16 L278 32 L302 58 L286 82 L268 102 L244 114 L232 138 L220 164 L236 158 L248 130 L236 112 L210 120 L192 146 L178 186 L160 164 L148 126 L136 104 L112 98 L96 124 L80 166 L62 138 L50 104 L36 88 Z" />
+                <path fill="#1d6b74" d="M312 78 C322 88 324 108 314 118 C306 112 304 92 312 78 Z" />
+                <path fill="#1d6b74" d="M318 126 C328 134 326 152 316 150 C310 142 310 132 318 126 Z" />
+                <circle cx="190" cy="198" r="7" fill="#1d6b74" />
+              </svg>
+              <div class="region-name">Asia</div>
+            </div>
+            <div id="region-africa" class="port pre">
+              <svg viewBox="0 0 240 260" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+                <path fill="#1d6b74" d="M100 20 C140 8 175 16 190 36 C200 50 194 64 204 80 C220 102 236 118 226 136 C216 150 200 156 194 174 C188 196 182 214 172 230 C160 246 136 256 114 250 C96 242 80 222 68 202 C56 184 48 168 64 154 C36 146 16 128 14 106 C12 84 30 66 50 50 C64 36 78 26 100 20 Z" />
+              </svg>
+              <div class="region-name">Africa</div>
+            </div>
+            <div id="region-latam" class="port pre">
+              <svg viewBox="0 0 200 300" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+                <path fill="#1d6b74" d="M70 6 C92 2 108 12 100 26 C94 36 104 44 92 54 C82 62 90 72 84 84 C96 92 118 86 136 98 C156 114 168 140 164 168 C158 198 142 228 122 252 C108 270 96 284 84 278 C74 268 76 240 70 210 C64 180 54 150 50 122 C48 100 58 90 66 84 C56 72 64 60 58 48 C52 34 58 16 70 6 Z" />
+              </svg>
+              <div class="region-name">Latin America</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <audio
+        id="bed-a"
+        src="assets/bgm/bed.wav"
+        data-start="0"
+        data-duration="15"
+        data-track-index="8"
+        data-volume="0.5"
+        data-fade-in="0.35"
+        data-fade-out="1.2"
+        data-timeline-role="music"
+      ></audio>
+      <audio id="sfx-late" src="assets/sfx/pop.mp3" data-start="0.64" data-duration="0.72" data-track-index="10" data-volume="0.7"></audio>
+      <audio id="sfx-stamp" src="assets/sfx/impact-bass-1.mp3" data-start="4.14" data-duration="2.12" data-track-index="11" data-volume="0.55"></audio>
+      <audio id="sfx-share" src="assets/sfx/whoosh-short.mp3" data-start="7.55" data-duration="0.57" data-track-index="12" data-volume="0.65"></audio>
+      <audio id="sfx-pay" src="assets/sfx/impact-bass-2.mp3" data-start="10.03" data-duration="2.2" data-track-index="13" data-volume="0.5"></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#track-fill", { scaleX: 0 }, { scaleX: 0.6, duration: 0.8, ease: "power2.out" }, 0.05);
+      tl.fromTo("#late-ship", { x: 0 }, { x: 600, duration: 0.8, ease: "power2.out" }, 0.05);
+      tl.fromTo("#late-kicker", { opacity: 0 }, { opacity: 1, duration: 0.16, ease: "power2.out" }, 0.12);
+      ["#w-the", "#w-ship", "#w-is"].forEach((sel, i) => {
+        tl.fromTo(sel, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.14, ease: "power4.out" }, 0.2 + i * 0.05);
+      });
+      tl.fromTo("#w-late", { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power4.out" }, 0.4);
+      tl.fromTo("#late-flag", { opacity: 0, scale: 1.35 }, { opacity: 1, scale: 1, duration: 0.22, ease: "back.out(1.6)" }, 0.72);
+      tl.fromTo("#due-wages", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.26, ease: "power4.out" }, 1.05);
+      tl.fromTo("#due-rent", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.26, ease: "power4.out" }, 1.2);
+      tl.fromTo("#due-invoices", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.26, ease: "power4.out" }, 1.35);
+      tl.fromTo("#due-note", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power2.out" }, 1.55);
+      tl.to("#late-stage", { opacity: 0, filter: "blur(8px)", duration: 0.16, ease: "power3.in" }, 3.05);
+
+      tl.fromTo("#policy-stage", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power2.out" }, 3.15);
+      tl.fromTo("#pol-kicker", { opacity: 0 }, { opacity: 1, duration: 0.14, ease: "power2.out" }, 3.22);
+      tl.fromTo("#pol-title", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power4.out" }, 3.32);
+      ["#pol-1", "#pol-2", "#pol-3"].forEach((sel, i) => {
+        tl.fromTo(sel, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.22, ease: "power3.out" }, 3.55 + i * 0.12);
+      });
+      tl.fromTo("#pol-strike", { scaleX: 0, opacity: 1 }, { scaleX: 1, opacity: 1, duration: 0.16, ease: "power3.in" }, 4.05);
+      tl.fromTo("#pol-stamp", { opacity: 0, scale: 1.45, rotation: -16 }, { opacity: 1, scale: 1, rotation: -8, duration: 0.24, ease: "back.out(1.7)" }, 4.18);
+      tl.fromTo("#pol-foot", { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power2.out" }, 4.48);
+      tl.to("#policy-stage", { opacity: 0, filter: "blur(8px)", duration: 0.16, ease: "power3.in" }, 5.85);
+
+      tl.fromTo("#pool-stage", { clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0% 0 0 0)", duration: 0.28, ease: "power3.inOut" }, 5.9);
+      tl.fromTo("#pool-kicker", { opacity: 0 }, { opacity: 1, duration: 0.14, ease: "power2.out" }, 6.05);
+      tl.fromTo("#pool-title", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power4.out" }, 6.15);
+      tl.fromTo("#pool-while", { opacity: 0 }, { opacity: 1, duration: 0.16, ease: "power2.out" }, 6.32);
+      tl.fromTo("#lp-1", { y: -160, opacity: 0 }, { y: 0, opacity: 1, duration: 0.32, ease: "power4.out" }, 6.5);
+      tl.fromTo("#lp-2", { y: -200, opacity: 0 }, { y: 0, opacity: 1, duration: 0.32, ease: "power4.out" }, 6.6);
+      tl.fromTo("#lp-3", { y: -140, opacity: 0 }, { y: 0, opacity: 1, duration: 0.32, ease: "power4.out" }, 6.7);
+      tl.fromTo(".lp-name", { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power2.out" }, 6.85);
+      tl.fromTo("#claim-pill", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.16, ease: "power2.out" }, 6.75);
+      tl.fromTo("#share", { opacity: 0 }, { opacity: 1, duration: 0.14, ease: "power2.out" }, 7.55);
+      tl.fromTo("#share", { x: 0 }, { x: 1160, duration: 0.48, ease: "power3.inOut" }, 7.68);
+      tl.fromTo("#pool-foot", { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power2.out" }, 8.25);
+      tl.to("#pool-stage", { opacity: 0, filter: "blur(10px)", duration: 0.16, ease: "power3.in" }, 9.35);
+
+      tl.fromTo("#geo-kicker", { opacity: 0 }, { opacity: 1, duration: 0.14, ease: "power2.out" }, 9.5);
+      tl.fromTo("#geo-title", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.18, ease: "power4.out" }, 9.6);
+      tl.fromTo("#geo-sub", { opacity: 0 }, { opacity: 1, duration: 0.16, ease: "power2.out" }, 9.82);
+      ["#region-asia", "#region-africa", "#region-latam"].forEach((sel, i) => {
+        tl.fromTo(sel, { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.26, ease: "power4.out" }, 10.05 + i * 0.1);
+      });
+      tl.to("#geo-stage", { opacity: 0, filter: "blur(8px)", duration: 0.16, ease: "power3.in" }, 11.7);
+      tl.to("#chrome", { opacity: 0, duration: 0.16, ease: "power2.in" }, 11.7);
+
+      tl.fromTo("#pay-kicker", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.14, ease: "power4.out" }, 11.85);
+      tl.fromTo("#pay-title", { opacity: 0, filter: "blur(12px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.18, ease: "power4.out" }, 11.98);
+      tl.fromTo("#pay-sub", { opacity: 0 }, { opacity: 1, duration: 0.16, ease: "power2.out" }, 12.22);
+      tl.fromTo("#pay-rule", { opacity: 0 }, { opacity: 1, duration: 0.16, ease: "power2.out" }, 12.38);
+      tl.fromTo("#pay-mark", { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power2.out" }, 12.55);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

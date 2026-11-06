@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HeroFilm } from "./components/hero-film";
 import { FleetGrid, GrowthChart, PremiumBars } from "./components/market";
 
 const STEPS = [
@@ -61,27 +62,30 @@ export default function Home() {
               "radial-gradient(ellipse 80% 70% at 88% 18%, rgba(29,107,116,0.14), transparent 55%), radial-gradient(ellipse 60% 50% at 12% 88%, rgba(217,72,15,0.08), transparent 50%)",
           }}
         />
-        <div className="relative max-w-3xl space-y-6">
-          <p className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-sea">Skjol</p>
-          <h1 className="font-display text-4xl sm:text-6xl font-semibold leading-[1.05]">
-            Late ship? <br />
-            Get paid, <span className="text-signal">automatically.</span>
-          </h1>
-          <p className="text-lg text-ink-2 max-w-xl">
-            Parametric arrival-delay cover for small importers: a fixed payout when the named vessel’s recorded arrival is more than 24 hours after the deadline in your contract. No claim forms.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/cover" className="btn btn-signal">
-              Get cover
-            </Link>
-            <Link href="/integrations" className="btn btn-ghost">
-              How it’s built
-            </Link>
+        <div className="relative grid items-center gap-8 lg:grid-cols-2">
+          <div className="space-y-6">
+            <p className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-sea">Skjol</p>
+            <h1 className="font-display text-4xl sm:text-6xl font-semibold leading-[1.05]">
+              Late ship? <br />
+              Get paid, <span className="text-signal">automatically.</span>
+            </h1>
+            <p className="text-lg text-ink-2 max-w-xl">
+              Parametric arrival-delay cover for small importers: a fixed payout when the named vessel’s recorded arrival is more than 24 hours after the deadline in your contract. No claim forms.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/cover" className="btn btn-signal">
+                Get cover
+              </Link>
+              <Link href="/integrations" className="btn btn-ghost">
+                How it’s built
+              </Link>
+            </div>
+            <p className="text-xs text-muted max-w-xl">
+              Testnet demo — payments use test USDC. Start on Get cover with{" "}
+              <strong className="text-ink-2 font-semibold">Use demo wallet (test funds)</strong>.
+            </p>
           </div>
-          <p className="text-xs text-muted max-w-xl">
-            Testnet demo — payments use test USDC. Start on Get cover with{" "}
-            <strong className="text-ink-2 font-semibold">Use demo wallet (test funds)</strong>.
-          </p>
+          <HeroFilm />
         </div>
       </section>
 
