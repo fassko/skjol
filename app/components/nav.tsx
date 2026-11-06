@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/policies", label: "My shipments" },
   { href: "/agent", label: "Freight agent" },
   { href: "/integrations", label: "How it's built" },
+  { href: "/team", label: "Team" },
 ];
 
 export function Nav() {
@@ -21,7 +22,7 @@ export function Nav() {
         <Link href="/" className="flex items-center gap-2 font-display text-xl font-semibold">
           <Anchor /> Skjol
         </Link>
-        <nav className="hidden md:flex items-center gap-1 text-sm">
+        <nav className="hidden lg:flex items-center gap-1 text-sm">
           {LINKS.map((l) => (
             <Link
               key={l.href}
@@ -52,7 +53,7 @@ export function Nav() {
           )}
         </div>
       </div>
-      <nav className="md:hidden flex gap-1 px-3 pb-2 overflow-x-auto text-xs">
+      <nav className="lg:hidden flex gap-1 px-3 pb-2 overflow-x-auto text-xs">
         {LINKS.map((l) => (
           <Link key={l.href} href={l.href} className={`px-3 py-1 rounded-full whitespace-nowrap ${path.startsWith(l.href) ? "bg-ink text-paper" : "bg-paper-2"}`}>
             {l.label}
